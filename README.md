@@ -206,6 +206,10 @@ Mit eigenem Fenster (`KIND=desktop`, Bibliothek [Wails](https://wails.io)): Wind
 macOS und Linux brauchen cgo und müssen auf dem Zielsystem gebaut werden, Linux zusätzlich
 `libgtk-3-dev` und `libwebkit2gtk-4.1-dev`.
 
+Programmsymbol: der Bär aus `build/icon.svg` (daraus `build/icon.png` und `web/icon.png`). Für Windows packt
+`scripts/build.sh` ihn mit [go-winres](https://github.com/tc-hib/go-winres) in die `.exe`, unter Linux setzt
+das Fenster ihn selbst. Die macOS-Downloads sind nackte Programme ohne `.app`-Paket und zeigen deshalb kein Symbol.
+
 Tests: `go test ./...`
 
 Selbst gebaute Programme enthalten keinen OpenSubtitles-Key, die Untertitel-Funktion ist dann ausgeblendet.
