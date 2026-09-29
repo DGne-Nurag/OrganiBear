@@ -168,19 +168,35 @@ func TestOfflineAndDuplicates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conflicts := 0
+	var dups []*Item
 	for _, it := range items {
 		switch it.Status {
 		case StatusOffline:
-		case StatusConflict:
-			conflicts++
+		case StatusDuplicate:
+			dups = append(dups, it)
 		default:
 			t.Errorf("%s: unerwarteter Status %q", it.RelSource, it.Status)
 		}
 	}
 	// Die beiden .mkv landen auf demselben Ziel, die .avi nicht.
-	if conflicts != 2 {
-		t.Errorf("erwartet 2 Konflikte, bekommen %d", conflicts)
+	if len(dups) != 2 {
+		t.Fatalf("erwartet 2 doppelte, bekommen %d", len(dups))
+	}
+	if !strings.Contains(dups[0].Message, dups[1].RelSource) {
+		t.Errorf("Meldung nennt die andere Datei nicht: %q", dups[0].Message)
+	}
+
+	// Sind beide gewählt, wird nur die erste einsortiert, die zweite bleibt liegen.
+	j, _, err := Apply(cfg, items, map[int]bool{dups[0].ID: true, dups[1].ID: true}, filepath.Join(tmp, "verlauf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(j.Ops) != 1 || dups[0].Status != StatusDone || !exists(dups[1].Source) {
+		t.Errorf("doppelte falsch behandelt: ops=%d, erste=%q", len(j.Ops), dups[0].Status)
+	}
+	PlanTargets(cfg, items)
+	if dups[1].Status != StatusConflict {
+		t.Errorf("zweite sollte jetzt Konflikt sein, ist %q", dups[1].Status)
 	}
 }
 
