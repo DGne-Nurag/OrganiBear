@@ -54,6 +54,23 @@ func NewTMDB(key, lang string) *TMDB {
 
 func (t *TMDB) Enabled() bool { return t != nil && t.Key != "" }
 
+// Check prüft, ob TMDB den Key annimmt.
+func (t *TMDB) Check(ctx context.Context) error {
+	if !t.Enabled() {
+		return errors.New("kein API-Key eingetragen")
+	}
+	var out struct {
+		Success bool `json:"success"`
+	}
+	if err := t.get(ctx, "/authentication", nil, &out); err != nil {
+		return err
+	}
+	if !out.Success {
+		return errors.New("TMDB lehnt den API-Key ab")
+	}
+	return nil
+}
+
 func (t *TMDB) get(ctx context.Context, path string, q url.Values, out any) error {
 	if q == nil {
 		q = url.Values{}

@@ -85,6 +85,66 @@ async function run() {
   const { proc, url } = await startServer();
   const browser = await chromium.launch();
   try {
+    // Erster Start ohne TMDB-Key: Die Anleitung öffnet sich von selbst.
+    console.log("\nErster Start (Anleitung zum TMDB-Key)");
+    for (const scheme of ["light", "dark"]) {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: scheme });
+      await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+      const page = await context.newPage();
+      page.on("pageerror", e => fail("JavaScript-Fehler: " + e.message));
+      await page.goto(url);
+      await page.waitForSelector("#guide[open]", { timeout: 5000 }).then(() => ok(`Anleitung öffnet sich (${scheme})`), () => fail("Anleitung öffnet sich nicht"));
+      for (let step = 1; step <= 4; step++) {
+        (await focused(page)).includes("g-title") || fail(`Schritt ${step}: Fokus nicht auf der Überschrift`);
+        await axe(page, `Anleitung Schritt ${step} (${scheme})`);
+        if (step === 3) {
+          await page.click('[data-copy="g-url"]');
+          const clip = await page.evaluate(() => navigator.clipboard.readText());
+          clip === "https://github.com/DGne-Nurag/OrganiBear" ? ok("Kopieren-Knopf") : fail("Zwischenablage: " + clip);
+        }
+        if (step < 4) await page.click("#g-next");
+      }
+      // Key prüfen: TMDB-Antwort nachgestellt, damit der Test nicht ins Internet muss.
+      await page.click("#g-next");
+      (await page.getAttribute("#g-key", "aria-invalid")) === "true" ? ok("Leerer Key wird angemahnt") : fail("Leerer Key ohne Hinweis");
+      await page.route("**/api/tmdb/test", r => r.fulfill({ status: 502, contentType: "application/json", body: '{"error":"TMDB lehnt den API-Key ab"}' }));
+      await page.fill("#g-key", "falsch");
+      await page.click("#g-next");
+      await page.waitForFunction(() => document.querySelector("#g-msg").textContent.includes("kennt diesen Key nicht"))
+        .then(() => ok("Falscher Key: verständliche Meldung"), () => fail("Falscher Key: " + "keine Meldung"));
+      await axe(page, `Anleitung mit Fehler (${scheme})`);
+      await page.unroute("**/api/tmdb/test");
+      await page.route("**/api/tmdb/test", r => r.fulfill({ status: 200, contentType: "application/json", body: '{"message":"Der Key passt."}' }));
+      await page.fill("#g-key", "0123456789abcdef0123456789abcdef");
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => document.querySelector("#g-title").textContent === "Fertig!")
+        .then(() => ok("Richtiger Key: gespeichert, Fertig-Schritt"), () => fail("Richtiger Key: kein Fertig-Schritt"));
+      await axe(page, `Anleitung fertig (${scheme})`);
+      (await page.inputValue("#key")) === "0123456789abcdef0123456789abcdef" ? ok("Key steht in den Einstellungen") : fail("Key fehlt in den Einstellungen");
+      await page.click("#g-next");
+      (await page.locator("#guide").isVisible()) ? fail("Anleitung bleibt offen") : ok("Los geht's schließt die Anleitung");
+      // Key wieder entfernen: Die restlichen Tests laufen ohne TMDB.
+      await page.evaluate(async () => {
+        const c = (await (await fetch("/api/config")).json()).config;
+        await fetch("/api/config", { method: "PUT", headers: { "X-OrganiBear": "1" }, body: JSON.stringify({ ...c, tmdb_api_key: "" }) });
+      });
+      await page.reload();
+      await page.waitForSelector("#guide[open]");
+      await page.click("#g-later");
+      await page.reload();
+      await page.waitForTimeout(500);
+      (await page.locator("#guide").isVisible()) ? fail("„Später“ wird nicht gemerkt") : ok("„Später“ wird gemerkt");
+      await page.click('#offline-hint [data-guide]');
+      (await page.locator("#guide").isVisible()) ? ok("Anleitung über den Hinweis erreichbar") : fail("Hinweis öffnet die Anleitung nicht");
+      await page.keyboard.press("Escape");
+      // Für den zweiten Durchlauf wieder wie beim ersten Start.
+      await page.evaluate(async skip => {
+        const c = (await (await fetch("/api/config")).json()).config;
+        await fetch("/api/config", { method: "PUT", headers: { "X-OrganiBear": "1" }, body: JSON.stringify({ ...c, tmdb_guide_skipped: skip }) });
+      }, scheme === "dark");
+      await context.close();
+    }
+
     for (const scheme of ["light", "dark"]) {
       console.log(`\n${scheme === "light" ? "Heller" : "Dunkler"} Modus`);
       const src = makeFixtures();

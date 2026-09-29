@@ -47,6 +47,9 @@ type Config struct {
 	Extras         Extras     `json:"extras"`
 	Subtitles      Subtitles  `json:"subtitles"`
 	TheTVDB        TheTVDB    `json:"thetvdb"`
+	// GuideSkipped: Die Anleitung zum TMDB-Key wurde mit „Später“ weggeklickt
+	// und öffnet sich beim Start nicht mehr von selbst.
+	GuideSkipped bool `json:"tmdb_guide_skipped,omitempty"`
 }
 
 // TheTVDB ist die zweite Quelle für Serien, wenn TMDB nichts findet. Den
