@@ -337,7 +337,7 @@ func writeJournal(path string, j *Journal) error {
 }
 
 func ReadJournal(path string) (*Journal, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- Pfad kommt aus dem eigenen Verlaufsordner, Name wird im Server geprüft
 	if err != nil {
 		return nil, err
 	}

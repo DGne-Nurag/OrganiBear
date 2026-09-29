@@ -81,4 +81,12 @@ GOOS=windows GOARCH=amd64 go build -o organibear.exe .
 
 Tests: `go test ./...`
 
+CI prüft bei jedem Push und zusätzlich jeden Montag:
+
+- `go test` inklusive Sicherheitstests (`security_test.go`)
+- `govulncheck`: bekannte Sicherheitslücken in Go und im Code
+- `staticcheck` und `gosec`: statische Analyse (bewusste Ausnahmen sind mit `#nosec` und Begründung markiert)
+- Barrierefreiheit nach WCAG 2.2 AA mit Playwright und axe, hell und dunkel, inklusive Tastaturbedienung und 320 px Breite:
+  `cd e2e && npm ci && npx playwright install chromium && npm test`
+
 Dieses Produkt nutzt die TMDB API, ist aber nicht von TMDB unterstützt oder zertifiziert.

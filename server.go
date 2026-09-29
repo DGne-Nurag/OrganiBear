@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -97,6 +98,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 				denied(w)
 				return
 			}
+			// #nosec G124 -- nur http://127.0.0.1, ein Secure-Cookie würde dort nicht überall gesetzt
 			http.SetCookie(w, &http.Cookie{Name: cookieName, Value: s.token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
@@ -126,13 +128,13 @@ func denied(w http.ResponseWriter) {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v) // Client weg: nichts mehr zu tun
 }
 
 func writeErr(w http.ResponseWriter, code int, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 }
 
 func readJSON(r *http.Request, v any) error {
@@ -228,7 +230,9 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 	// Ordner merken
 	if cfg.SourceDir != s.cfg.SourceDir || cfg.TargetDir != s.cfg.TargetDir {
 		s.cfg = cfg
-		SaveConfig(s.cfgPath, cfg)
+		if err := SaveConfig(s.cfgPath, cfg); err != nil {
+			log.Printf("Ordner konnten nicht gespeichert werden: %v", err)
+		}
 	}
 	s.items = items
 	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled()})
