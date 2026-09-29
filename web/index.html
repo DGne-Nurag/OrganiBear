@@ -56,7 +56,7 @@ body {
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-main { max-width: 1100px; margin: 0 auto; padding: 16px 16px 140px; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px 16px 40px; }
 header { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 8px 0 20px; }
 .brand { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 260px; }
 .brand h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: -.5px; line-height: 1.1; }
@@ -161,7 +161,7 @@ a.tag { text-decoration: underline; text-underline-offset: 2px; }
 .empty .big { font-size: 48px; }
 
 .bar {
-  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(1068px, calc(100% - 32px));
+  position: sticky; bottom: 16px; z-index: 5; margin-top: 16px;
   background: var(--card); border-radius: 999px; box-shadow: var(--shadow), 0 0 0 2px var(--line);
   padding: 10px 10px 10px 22px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
 }
@@ -300,6 +300,13 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
       <h3 class="sr-only">Vorschau</h3>
       <div class="toolbar" id="summary" role="group" aria-label="Nach Status filtern"></div>
       <div id="items"></div>
+    </div>
+    <!-- Klebt beim Scrollen unten am Fenster und bleibt am Ende direkt unter der Liste stehen. -->
+    <div class="bar" id="bar" role="region" aria-label="Auswahl" hidden>
+      <span class="grow" id="selinfo" aria-live="polite"></span>
+      <button type="button" class="btn small" id="selready">Alle bereiten wählen</button>
+      <button type="button" class="btn small" id="selnone">Keine</button>
+      <button type="button" class="btn go" id="apply"><span aria-hidden="true">🐻 </span>Einsortieren</button>
     </div>
     <div class="card empty" id="empty">
       <div class="big" aria-hidden="true">🍯</div>
@@ -451,13 +458,6 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
     <p>Dieses Produkt nutzt die TMDB-API, wird aber von TMDB weder unterstützt noch zertifiziert.</p>
   </footer>
 </main>
-
-<div class="bar" id="bar" role="region" aria-label="Auswahl" hidden>
-  <span class="grow" id="selinfo" aria-live="polite"></span>
-  <button type="button" class="btn small" id="selready">Alle bereiten wählen</button>
-  <button type="button" class="btn small" id="selnone">Keine</button>
-  <button type="button" class="btn go" id="apply"><span aria-hidden="true">🐻 </span>Einsortieren</button>
-</div>
 
 <dialog id="picker" aria-labelledby="pk-title" aria-describedby="pk-path">
   <div class="dlg-head">

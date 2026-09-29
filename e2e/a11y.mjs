@@ -164,6 +164,14 @@ async function run() {
       await axe(page, "Treffer und Suche");
       (await page.locator('.item[data-id="4"] a.tag[href^="https://thetvdb.com/"]').count()) === 1
         ? ok("TheTVDB-Treffer mit Link auf TheTVDB.com") : fail("Link auf TheTVDB.com fehlt beim Treffer");
+      {
+        // Die Auswahlleiste steht am Seitenende direkt unter der Liste, nicht unter dem Footer.
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        const [bar, list, foot] = await page.evaluate(() => ["#bar", "#results", "footer.about"].map(s => document.querySelector(s).getBoundingClientRect().toJSON()));
+        bar.top >= list.bottom - 1 && bar.bottom <= foot.top ? ok("Auswahlleiste unter der Liste, über dem Footer")
+          : fail(`Auswahlleiste liegt falsch (Liste bis ${list.bottom}, Leiste ${bar.top}-${bar.bottom}, Footer ab ${foot.top})`);
+        await page.evaluate(() => window.scrollTo(0, 0));
+      }
       await page.click('.item[data-id="3"] .tog');
       await page.selectOption('.item[data-id="3"] .ps', "21");
       await page.waitForSelector('.item[data-id="3"] .pe:not([disabled])');
