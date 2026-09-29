@@ -41,8 +41,9 @@ in eine ordentliche Bibliothek.
    - Linux ohne Desktop (Server, NAS, Raspberry Pi): `organibear-…-linux-amd64` bzw. `-arm64`, nur mit Browser.
 2. Starten. OrganiBear öffnet sein eigenes Fenster. Klappt das nicht (oder bei den Linux-Versionen ohne
    Desktop), öffnet sich die Oberfläche stattdessen im Browser; der Link steht dann auch im Terminal.
-3. Unter **Einstellungen** den TMDB-Key eintragen (kostenlos unter
-   [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)), Vorlagen und Dateiregeln anpassen.
+3. Beim ersten Start führt der Bär Schritt für Schritt zum kostenlosen TMDB-Key: Konto anlegen, Key beantragen
+   (mit Vorlage zum Kopieren für das Formular), einfügen, fertig. Der Key wird vor dem Speichern bei TMDB geprüft.
+   Später findest du die Anleitung unter **Einstellungen**, dort auch Vorlagen und Dateiregeln.
 4. Unter **Sortieren** Quelle und Ziel wählen, **Schnüffeln** drücken, Vorschau prüfen, **Einsortieren**.
 
 ### Optionen

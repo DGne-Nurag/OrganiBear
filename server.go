@@ -32,6 +32,7 @@ type Server struct {
 	items      []*Item
 	static     fs.FS
 	token      string // Zugangsschlüssel pro Programmstart
+	tmdbBase   string // nur für Tests: andere TMDB-Adresse
 
 	quit     chan struct{} // wird geschlossen, wenn das Programm enden soll
 	quitOnce sync.Once
@@ -120,6 +121,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/quit", s.quitHandler)
 	mux.HandleFunc("POST /api/mediaserver/test", s.testMediaServer)
 	mux.HandleFunc("POST /api/subtitles/test", s.testSubtitles)
+	mux.HandleFunc("POST /api/tmdb/test", s.testTMDB)
 	mux.Handle("GET /", http.FileServerFS(s.static))
 	return s.guard(mux)
 }
@@ -436,6 +438,26 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 	PlanTargets(s.cfg, s.items)
 	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled(), "ops": len(j.Ops), "done": done, "journal": filepath.Base(path),
 		"warnings": j.Warnings, "refreshed": refreshed})
+}
+
+// testTMDB prüft einen (noch ungespeicherten) TMDB-Key.
+func (s *Server) testTMDB(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Key string `json:"key"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	t := NewTMDB(req.Key, "")
+	if s.tmdbBase != "" {
+		t.BaseURL = s.tmdbBase
+	}
+	if err := t.Check(r.Context()); err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]string{"message": "Der Key passt."})
 }
 
 // testSubtitles prüft die Verbindung und ggf. das Konto bei OpenSubtitles (auch ungespeichert).

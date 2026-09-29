@@ -67,6 +67,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, colorScheme: "light" });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(url);
+  // Beim ersten Start öffnet sich die Anleitung zum TMDB-Key.
+  await page.click("#g-later");
   await page.fill("#src", src);
   await page.fill("#dst", dst);
   await page.click("#scan");

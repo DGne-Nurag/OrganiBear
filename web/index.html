@@ -181,7 +181,7 @@ th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spa
 .server { border: 2px solid var(--line); border-radius: 14px; padding: 10px 14px 14px; margin: 0; min-width: 0; }
 .server legend { font-weight: 800; padding: 0 6px; }
 .server .result { margin: 8px 0 0; }
-.hint a { color: var(--honey-ink); }
+.hint a, .hint .linklike { color: var(--honey-ink); }
 code { font-family: ui-monospace, Menlo, Consolas, monospace; background: var(--bg); padding: 1px 4px; border-radius: 4px; }
 .hist { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-top: 2px dashed var(--line); flex-wrap: wrap; }
 .hist:first-child { border-top: 0; }
@@ -204,6 +204,26 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
 /* Das TheTVDB-Logo hat weiße Schrift und steht darum immer auf dunklem Grund. */
 .about .tvdb { display: inline-block; margin: 6px 0 2px; padding: 4px 8px; border-radius: 8px; background: #26221f; }
 .about .tvdb img { display: block; height: 22px; width: auto; }
+/* Anleitung zum TMDB-Key */
+button.linklike { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; font-weight: 700; }
+kbd { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 4px; }
+#guide { width: min(620px, calc(100% - 32px)); }
+#g-title:focus { outline: none; }
+.guide-body { padding: 4px 18px 8px; max-height: 65vh; overflow: auto; }
+.guide-body ol { margin: 8px 0; padding-left: 22px; }
+.guide-body li { margin: 6px 0; }
+.guide-step { color: var(--muted); font-size: 13px; font-weight: 800; margin: 0 0 2px; }
+a.linkbtn {
+  display: inline-block; margin: 6px 0; padding: 10px 18px; border-radius: 14px; font-weight: 800; text-decoration: none;
+  background: var(--honey); color: var(--on-honey); box-shadow: 0 4px 0 var(--honey-dark);
+}
+.fill { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; margin: 8px 0; font-size: 14px; }
+.fill dt { font-weight: 800; }
+.fill dd { margin: 0; overflow-wrap: anywhere; }
+.guide-msg { min-height: 1.4em; font-weight: 700; }
+.guide-msg.bad { color: var(--berry); }
+.guide-msg.good { color: var(--go); }
+@media (max-width: 480px) { .fill { grid-template-columns: 1fr auto; } .fill dt { grid-column: 1 / -1; } }
 [hidden] { display: none !important; }
 /* Drag & Drop im Programmfenster: das Feld unter dem Ordner leuchtet auf. */
 .pathpick.wails-drop-target-active input { border-color: var(--go); box-shadow: 0 0 0 3px var(--go); background: var(--card); }
@@ -295,7 +315,7 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
         </div>
         <button type="button" class="btn primary" id="scan"><span aria-hidden="true">🐾 </span><span class="lbl">Schnüffeln</span></button>
       </div>
-      <p class="hint" id="offline-hint" hidden>Ohne TMDB-Key arbeitet der Bär nur mit den Dateinamen. In den <a href="#tab-settings" data-goto="settings">Einstellungen</a> kannst du einen Key eintragen.</p>
+      <p class="hint" id="offline-hint" hidden>Ohne TMDB-Key arbeitet der Bär nur mit den Dateinamen. <button type="button" class="linklike" data-guide>So bekommst du einen kostenlosen Key</button> (dauert etwa 5 Minuten).</p>
     </div>
 
     <div class="card" id="results" hidden>
@@ -338,7 +358,7 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
           </select>
         </div>
       </div>
-      <p class="hint" id="key-hint">Einen kostenlosen Key gibt es nach der Anmeldung auf <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org (öffnet neues Fenster)</a>.</p>
+      <p class="hint" id="key-hint">Einen kostenlosen Key gibt es nach der Anmeldung auf <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org (öffnet neues Fenster)</a>. <button type="button" class="linklike" data-guide>Schritt-für-Schritt-Anleitung</button></p>
     </div>
 
     <div class="card">
@@ -470,6 +490,69 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
   <div class="dlg-foot">
     <button type="button" class="btn small" id="pk-cancel">Abbrechen</button>
     <button type="button" class="btn small primary" id="pk-ok">Diesen Ordner nehmen</button>
+  </div>
+</dialog>
+
+<dialog id="guide" aria-labelledby="g-title" aria-describedby="g-step">
+  <div class="dlg-head">
+    <p class="guide-step" id="g-step"></p>
+    <h2 id="g-title" tabindex="-1"></h2>
+  </div>
+  <div class="guide-body">
+    <div data-step="1">
+      <p>Damit der Bär Filme und Serien richtig benennt, fragt er bei <strong>TMDB</strong> nach, einer kostenlosen Film-Datenbank im Internet. Dafür brauchst du einen eigenen, kostenlosen Schlüssel, den <strong>API-Key</strong>. Das dauert etwa 5 Minuten, und du musst es nur einmal machen.</p>
+      <p>Tipp: Mach das am Computer. Laut TMDB klappen diese Seiten am Handy nicht gut. Die Seiten sind auf Englisch, der Bär sagt dir, wo du klicken musst.</p>
+      <p><strong>Hast du schon einen Key?</strong> <button type="button" class="linklike" data-go="4">Dann direkt zum Einfügen</button>.</p>
+    </div>
+    <div data-step="2">
+      <ol>
+        <li>Klick auf den Knopf. Die Anmeldeseite von TMDB öffnet sich.<br>
+          <a class="linkbtn" href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">Konto erstellen auf themoviedb.org<span class="sr-only"> (öffnet neues Fenster)</span></a></li>
+        <li>Trag einen <strong>Benutzernamen</strong>, ein <strong>Passwort</strong> (zweimal) und deine <strong>E-Mail-Adresse</strong> ein.</li>
+        <li>Klick auf <strong>„Sign Up“</strong>.</li>
+        <li>Schau in dein E-Mail-Postfach (auch im Spam-Ordner). TMDB schickt dir eine Mail. Klick darin auf den Link, um dein Konto zu bestätigen.</li>
+      </ol>
+      <p>Du hast schon ein Konto? Dann einfach auf „Weiter“.</p>
+    </div>
+    <div data-step="3">
+      <ol>
+        <li>Klick auf den Knopf. Falls TMDB nach deinem Login fragt: Benutzername und Passwort eingeben, dann <strong>„Login“</strong>.<br>
+          <a class="linkbtn" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">API-Seite auf themoviedb.org öffnen<span class="sr-only"> (öffnet neues Fenster)</span></a></li>
+        <li>Klick auf den Link zum Anfordern eines Keys (<strong>„click here“</strong> bzw. <strong>„Create“</strong>).</li>
+        <li>Wähl <strong>„Developer“</strong> und stimm den Nutzungsbedingungen zu (<strong>„Accept“</strong>). Die Nutzung ist kostenlos, solange du damit kein Geld verdienst.</li>
+        <li>Füll das Formular aus. Du kannst diese Angaben übernehmen:
+          <dl class="fill">
+            <dt>Type of Use</dt><dd>Desktop Application</dd><dd></dd>
+            <dt>Application Name</dt><dd id="g-name">OrganiBear</dd><dd><button type="button" class="btn small" data-copy="g-name">Kopieren<span class="sr-only">: Application Name</span></button></dd>
+            <dt>Application URL</dt><dd id="g-url">https://github.com/DGne-Nurag/OrganiBear</dd><dd><button type="button" class="btn small" data-copy="g-url">Kopieren<span class="sr-only">: Application URL</span></button></dd>
+            <dt>Application Summary</dt><dd id="g-sum">Personal, non-commercial tool to rename and sort my own movie and TV collection.</dd><dd><button type="button" class="btn small" data-copy="g-sum">Kopieren<span class="sr-only">: Application Summary</span></button></dd>
+          </dl>
+          Darunter will TMDB deinen Namen, deine Adresse und Telefonnummer wissen. Die bekommt nur TMDB, nicht OrganiBear.</li>
+        <li>Klick unten auf <strong>„Submit“</strong>.</li>
+      </ol>
+    </div>
+    <div data-step="4">
+      <ol>
+        <li>Auf der API-Seite steht jetzt dein <strong>„API Key“</strong>: eine lange Reihe aus Buchstaben und Zahlen. Falls du die Seite geschlossen hast:
+          <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">API-Seite wieder öffnen<span class="sr-only"> (öffnet neues Fenster)</span></a>.</li>
+        <li>Markier den Key mit der Maus und kopier ihn (<kbd>Strg</kbd>+<kbd>C</kbd>, am Mac <kbd>⌘</kbd>+<kbd>C</kbd>).</li>
+        <li>Füg ihn hier ein (<kbd>Strg</kbd>+<kbd>V</kbd>, am Mac <kbd>⌘</kbd>+<kbd>V</kbd>) und klick auf „Prüfen und speichern“.</li>
+      </ol>
+      <div class="field">
+        <label for="g-key">Dein TMDB API-Key</label>
+        <input id="g-key" autocomplete="off" spellcheck="false" aria-describedby="g-msg">
+      </div>
+      <p class="guide-msg" id="g-msg" role="status"></p>
+    </div>
+    <div data-step="5">
+      <p>Geschafft! Der Key ist gespeichert. Ab jetzt holt der Bär Titel, Jahr und Folgennamen von TMDB.</p>
+      <p>Jetzt oben bei <strong>Quelle</strong> den Ordner mit deinen Filmen wählen (oder hineinziehen) und <strong>Schnüffeln</strong> drücken.</p>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <button type="button" class="btn small" id="g-later">Später</button>
+    <button type="button" class="btn small" id="g-back">Zurück</button>
+    <button type="button" class="btn small primary" id="g-next">Weiter</button>
   </div>
 </dialog>
 
@@ -1140,7 +1223,82 @@ if (inApp) {
   });
 }
 
-loadConfig().then(refreshItems).catch(e => bear("confused", e.message));
+// Anleitung zum TMDB-Key: öffnet sich beim ersten Start von selbst.
+const GUIDE = ["Worum geht es?", "Kostenloses Konto anlegen", "Key beantragen", "Key einfügen", "Fertig!"];
+let guideStep = 1;
+function guideShow(n) {
+  guideStep = n;
+  $$("#guide [data-step]").forEach(d => (d.hidden = +d.dataset.step !== n));
+  $("#g-title").textContent = GUIDE[n - 1];
+  $("#g-step").textContent = n < GUIDE.length ? `Schritt ${n} von ${GUIDE.length - 1}` : "";
+  $("#g-back").hidden = n === 1 || n === GUIDE.length;
+  $("#g-later").hidden = n === GUIDE.length;
+  $("#g-next").textContent = n === 4 ? "Prüfen und speichern" : n === GUIDE.length ? "Los geht's" : "Weiter";
+  $("#g-title").focus();
+}
+function openGuide(n = 1) {
+  $("#g-msg").textContent = "";
+  $("#g-msg").className = "guide-msg";
+  if (!$("#guide").open) $("#guide").showModal();
+  guideShow(n);
+  bear("idle", "Ich zeig dir, wie du an den Key kommst.");
+}
+async function saveGuideCfg(patch) {
+  const r = await api("PUT", "/api/config", { ...state.cfg, ...patch });
+  state.cfg = r.config;
+  $("#key").value = state.cfg.tmdb_api_key || "";
+  $("#offline-hint").hidden = !!state.cfg.tmdb_api_key;
+}
+async function guideCheckKey() {
+  const key = $("#g-key").value.trim(), msg = $("#g-msg"), input = $("#g-key");
+  const say = (text, cls) => { msg.className = "guide-msg " + cls; msg.textContent = text; };
+  if (!key) { say("Bitte zuerst den Key einfügen.", "bad"); input.setAttribute("aria-invalid", "true"); input.focus(); return; }
+  say("Einen Moment, ich frage bei TMDB nach …", "");
+  $("#g-next").disabled = true;
+  try {
+    await api("POST", "/api/tmdb/test", { key });
+    input.removeAttribute("aria-invalid");
+    await saveGuideCfg({ tmdb_api_key: key });
+    bear("happy", "Der Key passt! Ich hab ihn gespeichert.", 2500);
+    guideShow(5);
+  } catch (e) {
+    input.setAttribute("aria-invalid", "true");
+    say(/lehnt den API-Key ab/.test(e.message)
+      ? "TMDB kennt diesen Key nicht. Hast du den ganzen „API Key“ kopiert, ohne Leerzeichen?"
+      : "Das hat nicht geklappt: " + e.message, "bad");
+    input.focus();
+  } finally {
+    $("#g-next").disabled = false;
+  }
+}
+$("#g-next").onclick = () => {
+  if (guideStep === 4) return guideCheckKey();
+  if (guideStep === GUIDE.length) { $("#guide").close(); $("#src").focus(); return; }
+  guideShow(guideStep + 1);
+};
+$("#g-back").onclick = () => guideShow(guideStep - 1);
+$("#g-later").onclick = async () => {
+  $("#guide").close();
+  bear("idle", "Kein Problem. Die Anleitung findest du jederzeit in den Einstellungen.", 4000);
+  if (!state.cfg.tmdb_guide_skipped) await saveGuideCfg({ tmdb_guide_skipped: true }).catch(e => bear("confused", e.message));
+};
+$("#g-key").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); guideCheckKey(); } });
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-guide]");
+  if (g) openGuide(1);
+  const go = e.target.closest("#guide [data-go]");
+  if (go) guideShow(+go.dataset.go);
+  const c = e.target.closest("[data-copy]");
+  if (c) {
+    const text = $("#" + c.dataset.copy).textContent;
+    (window.runtime?.ClipboardSetText ? window.runtime.ClipboardSetText(text) : navigator.clipboard.writeText(text))
+      .then(() => bear("happy", "Kopiert! Jetzt bei TMDB mit Strg+V einfügen.", 2500), () => bear("confused", "Kopieren ging nicht. Bitte von Hand markieren.", 3000));
+  }
+});
+
+loadConfig()
+  .then(() => { if (!state.cfg.tmdb_api_key && !state.cfg.tmdb_guide_skipped) openGuide(1); })
+  .then(refreshItems).catch(e => bear("confused", e.message));
 </script>
 </body>
 </html>
