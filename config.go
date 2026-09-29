@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -42,6 +43,37 @@ type Config struct {
 	SeriesTemplate string     `json:"series_template"`
 	FileRules      []FileRule `json:"file_rules"`
 	IgnorePatterns []string   `json:"ignore_patterns"`
+	Extras         Extras     `json:"extras"`
+}
+
+// Extras legt fest, was OrganiBear für Mediaserver zusätzlich erledigt.
+type Extras struct {
+	NFO      bool        `json:"nfo"`     // NFO-Dateien im Kodi-Format schreiben
+	Artwork  bool        `json:"artwork"` // Poster, Hintergrund- und Vorschaubilder laden
+	Plex     MediaServer `json:"plex"`
+	Jellyfin MediaServer `json:"jellyfin"`
+	Kodi     MediaServer `json:"kodi"`
+}
+
+// MediaServer sind die Zugangsdaten eines Mediaservers. Ohne URL ist er aus.
+type MediaServer struct {
+	URL      string `json:"url,omitempty"`
+	Token    string `json:"token,omitempty"`    // Plex-Token bzw. Jellyfin-API-Key
+	User     string `json:"user,omitempty"`     // nur Kodi
+	Password string `json:"password,omitempty"` // nur Kodi
+}
+
+// normalizeServerURL prüft eine Mediaserver-Adresse und entfernt den Schrägstrich am Ende.
+func normalizeServerURL(raw string) (string, error) {
+	raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+	if raw == "" {
+		return "", nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", errors.New("die Adresse muss mit http:// oder https:// beginnen, z. B. http://192.168.1.10:32400")
+	}
+	return raw, nil
 }
 
 func DefaultConfig() Config {
@@ -90,6 +122,17 @@ func (c *Config) Validate() error {
 			exts = append(exts, e)
 		}
 		r.Extensions = exts
+	}
+	for _, s := range []struct {
+		name string
+		srv  *MediaServer
+	}{{"Plex", &c.Extras.Plex}, {"Jellyfin", &c.Extras.Jellyfin}, {"Kodi", &c.Extras.Kodi}} {
+		u, err := normalizeServerURL(s.srv.URL)
+		if err != nil {
+			return fmt.Errorf("%s: %w", s.name, err)
+		}
+		s.srv.URL = u
+		s.srv.Token = strings.TrimSpace(s.srv.Token)
 	}
 	return nil
 }

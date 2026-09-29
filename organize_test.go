@@ -14,6 +14,10 @@ import (
 // fakeTMDB beantwortet die paar Endpunkte, die OrganiBear braucht.
 func fakeTMDB(t *testing.T) *TMDB {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/img/") {
+			w.Write(fakeJPEG) // Bilder brauchen keinen Key
+			return
+		}
 		if r.URL.Query().Get("api_key") != "testkey" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -26,7 +30,16 @@ func fakeTMDB(t *testing.T) *TMDB {
 		case r.URL.Path == "/search/tv" && strings.Contains(q, "breaking"):
 			out = map[string]any{"results": []map[string]any{{"id": 1396, "name": "Breaking Bad", "first_air_date": "2008-01-20"}}}
 		case r.URL.Path == "/tv/1396/season/1/episode/3":
-			out = map[string]any{"name": "...und der Leichensack"}
+			out = map[string]any{"id": 62087, "name": "...und der Leichensack", "overview": "Walt & Jesse <räumen> auf.", "air_date": "2008-02-10", "still_path": "/still.jpg"}
+		case r.URL.Path == "/movie/603":
+			out = map[string]any{"id": 603, "title": "Matrix", "overview": "Neo erwacht.", "release_date": "1999-03-30", "runtime": 136,
+				"genres": []map[string]any{{"name": "Action"}, {"name": "Science Fiction"}}, "poster_path": "/poster.jpg", "backdrop_path": "/backdrop.jpg",
+				"external_ids": map[string]any{"imdb_id": "tt0133093"}}
+		case r.URL.Path == "/tv/1396":
+			out = map[string]any{"id": 1396, "name": "Breaking Bad", "overview": "Ein Lehrer.", "first_air_date": "2008-01-20", "poster_path": "/showposter.jpg",
+				"external_ids": map[string]any{"imdb_id": "tt0903747", "tvdb_id": 81189}}
+		case r.URL.Path == "/tv/1396/season/1":
+			out = map[string]any{"poster_path": "/season1.png"}
 		case strings.HasPrefix(r.URL.Path, "/search/"):
 			out = map[string]any{"results": []any{}}
 		default:
@@ -38,8 +51,12 @@ func fakeTMDB(t *testing.T) *TMDB {
 	t.Cleanup(srv.Close)
 	db := NewTMDB("testkey", "de-DE")
 	db.BaseURL = srv.URL
+	db.ImageURL = srv.URL + "/img"
 	return db
 }
+
+// fakeJPEG ist der Anfang einer JPEG-Datei, genug für die Formatprüfung.
+var fakeJPEG = []byte("\xff\xd8\xff\xe0\x00\x10JFIF\x00")
 
 func touch(t *testing.T, root string, files ...string) {
 	for _, f := range files {
@@ -127,7 +144,7 @@ func TestScanApplyUndo(t *testing.T) {
 	}
 
 	journalDir := filepath.Join(tmp, "verlauf")
-	j, jpath, err := Apply(cfg, items, map[int]bool{matrix.ID: true, bb.ID: true, unknown.ID: true}, journalDir)
+	j, jpath, err := Apply(cfg, items, map[int]bool{matrix.ID: true, bb.ID: true, unknown.ID: true}, journalDir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +204,7 @@ func TestOfflineAndDuplicates(t *testing.T) {
 	}
 
 	// Sind beide gewählt, wird nur die erste einsortiert, die zweite bleibt liegen.
-	j, _, err := Apply(cfg, items, map[int]bool{dups[0].ID: true, dups[1].ID: true}, filepath.Join(tmp, "verlauf"))
+	j, _, err := Apply(cfg, items, map[int]bool{dups[0].ID: true, dups[1].ID: true}, filepath.Join(tmp, "verlauf"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
