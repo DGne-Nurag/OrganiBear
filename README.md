@@ -22,7 +22,9 @@ in eine ordentliche Bibliothek.
 
 ## Loslegen
 
-1. Programm für dein System bauen (siehe unten) oder aus den CI-Artefakten laden.
+1. Programm für dein System unter [Releases](https://github.com/DGne-Nurag/OrganiBear/releases) laden
+   (oder selbst bauen, siehe unten). Unter macOS und Linux vorher `chmod +x` ausführen; macOS
+   fragt beim ersten Start nach, weil das Programm nicht signiert ist (Rechtsklick › Öffnen).
 2. Starten. Das Webinterface öffnet sich im Browser. Der Link steht auch im Programmfenster.
 3. Unter **Einstellungen** den TMDB-Key eintragen (kostenlos unter
    [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)), Vorlagen und Dateiregeln anpassen.
@@ -98,3 +100,14 @@ Dieses Produkt nutzt die TMDB-API, wird aber von TMDB weder unterstützt noch ze
 
 Der Hinweis und das Logo stehen auch im Programm unten im Bereich „Über OrganiBear“.
 Die kostenlose TMDB-API ist nur für nicht-kommerzielle Nutzung gedacht; jeder Nutzer trägt seinen eigenen API-Key ein.
+
+## Release veröffentlichen
+
+Ein Tag startet den Release-Workflow. Er testet, baut Windows, macOS (Intel und Apple Silicon)
+und Linux (amd64 und arm64) und legt ein GitHub-Release mit den Programmen und `SHA256SUMS` an.
+Die Version steht danach im Startbanner. Tags mit Bindestrich (`v0.2.0-rc1`) werden als Vorabversion markiert.
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```

@@ -1,0 +1,78 @@
+# Release: Ein Tag wie v0.1.0 baut alle Plattformen und legt ein GitHub-Release
+# mit den Programmen und SHA256SUMS an.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          check-latest: true
+          cache: false # keine Abhängigkeiten, also kein go.sum
+      - run: go vet ./...
+      - run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: windows, goarch: amd64, ext: .exe }
+          - { goos: darwin, goarch: arm64, ext: "" }
+          - { goos: darwin, goarch: amd64, ext: "" }
+          - { goos: linux, goarch: amd64, ext: "" }
+          - { goos: linux, goarch: arm64, ext: "" } # Raspberry Pi, viele NAS
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          check-latest: true
+          cache: false
+      - run: go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o "dist/organibear-${GITHUB_REF_NAME}-${GOOS}-${GOARCH}${EXT}" .
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          EXT: ${{ matrix.ext }}
+          CGO_ENABLED: "0"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: organibear-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Prüfsummen
+        working-directory: dist
+        run: sha256sum organibear-* > SHA256SUMS && cat SHA256SUMS
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=(--generate-notes --title "OrganiBear ${GITHUB_REF_NAME}")
+          # Tags mit Bindestrich (v0.2.0-rc1) gelten als Vorabversion
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag "${flags[@]}"
