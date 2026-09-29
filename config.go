@@ -55,6 +55,9 @@ type Config struct {
 	InPlace bool `json:"in_place,omitempty"`
 	// RemuxMP4: MP4-Videos beim Einsortieren verlustfrei in MKV umpacken.
 	RemuxMP4 bool `json:"remux_mp4,omitempty"`
+	// Files: statt des ganzen Quellordners nur diese Videos (wird nicht
+	// gespeichert). SourceDir ist dann ihr gemeinsamer Ordner, siehe FilesRoot.
+	Files []string `json:"-"`
 }
 
 // Target ist der Ordner, in den einsortiert wird.

@@ -14,6 +14,7 @@ in eine ordentliche Bibliothek.
 
 - **Ein einziges Programm.** Starten, das Fenster geht auf, fertig. Keine Installation.
 - **Ordner einfach hineinziehen:** Quelle und Ziel per Drag & Drop aus dem Explorer, Finder oder Dateimanager.
+- **Oder nur einzelne Videos:** Statt eines ganzen Ordners gehen auch ein paar ausgewählte Dateien, samt ihren Untertiteln.
 - **Versteht viele Namensmuster:** `S01E02`, `1x02`, `Staffel 1 Folge 2`, Doppelfolgen (`S02E01E02`), Release-Gruppen, Qualitätsangaben, Jahreszahlen im Titel (`Blade Runner 2049 (2017)`), Ordnernamen wie `Serie/Staffel 2/05.mkv`, mehrteilige Filme (`Titanic.1997.CD1.avi` wird zu `Titanic (1997) - part1.avi`) und fortlaufende Folgennummern wie bei Anime (`One.Piece.E1071.mkv` wird über TMDB in Staffel und Folge umgerechnet).
 - **Metadaten von TMDB:** richtiger Titel in deiner Sprache, Jahr und Folgentitel. Bei Unsicherheit wählst du aus den Treffern, suchst selbst oder trägst die Daten von Hand ein. Bei Serien wählst du Staffel und Folge aus der TMDB-Liste, der Folgentitel kommt dann mit. Ohne API-Key arbeitet er nur mit den Dateinamen.
 - **IMDb- und TMDB-IDs:** Steht eine ID im Namen (`Matrix (1999) {imdb-tt0133093}`, `[tmdbid=603]`) oder in einer vorhandenen NFO, nimmt er genau diesen Titel. Im Suchfeld unter „Anpassen“ geht auch eine IMDb-ID wie `tt0133093`.
@@ -60,6 +61,10 @@ in eine ordentliche Bibliothek.
    - **Einsortieren:** Quelle und Ziel wählen, die Dateien kommen in die Bibliothek im Zielordner.
    - **Nur umbenennen:** nur die Quelle wählen. Die Dateien bleiben dort und bekommen Namen und Unterordner
      nach deinen Vorlagen; leere alte Ordner werden weggeräumt, Kopieren wird dabei zu Umbenennen.
+   - **Nur ein paar Videos?** Mit 🎞️ neben der Quelle Videos ankreuzen (auch aus mehreren Ordnern) oder sie
+     im Programmfenster auf die Quelle ziehen. Untertitel und andere Begleitdateien daneben kommen mit, die
+     übrigen Dateien im Ordner bleiben unberührt. Bei „Nur umbenennen“ entsteht die Bibliothek im gemeinsamen
+     Ordner der gewählten Videos.
 5. **Schnüffeln** drücken, Vorschau prüfen, **Einsortieren** bzw. **Umbenennen**. Alles lässt sich im **Verlauf** rückgängig machen.
 
 ### Optionen
@@ -69,8 +74,8 @@ organibear [-browser] [-addr 127.0.0.1:8765] [-config pfad/organibear.json] [-no
 ```
 
 `-browser` öffnet die Oberfläche im Browser statt im eigenen Fenster, `-no-browser` startet nur den Server
-(die Adresse steht im Terminal). Drag & Drop von Ordnern geht nur im eigenen Fenster, weil Browser Webseiten
-den Pfad eines abgelegten Ordners nicht verraten; dort bleibt der 📁-Knopf.
+(die Adresse steht im Terminal). Drag & Drop von Ordnern und Videos geht nur im eigenen Fenster, weil Browser
+Webseiten den Pfad abgelegter Dateien nicht verraten; dort bleiben die Knöpfe 📁 und 🎞️.
 
 **Beenden:** Fenster schließen oder den Knopf „Beenden“ oben rechts. Im Browser-Modus geht auch Strg+C im
 Terminal oder einfach Tab schließen: Ist 5 Minuten lang kein Tab mehr offen, legt sich der Bär von selbst schlafen

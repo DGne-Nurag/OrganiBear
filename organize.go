@@ -94,33 +94,49 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 
 	videos := map[string][]scanned{}     // Ordner -> Videos
 	companions := map[string][]scanned{} // Ordner -> Begleitdateien
-	err = filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil // unlesbare Ordner überspringen
-		}
-		if d.IsDir() {
-			if p != src && (strings.HasPrefix(d.Name(), ".") || p == dst || d.Name() == TrashDir) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !d.Type().IsRegular() || cfg.Ignored(d.Name()) {
-			return nil
+	videoCount := map[string]int{}       // Ordner -> alle Videos darin, auch nicht gewählte
+	add := func(p string, selected bool) {
+		name := filepath.Base(p)
+		if cfg.Ignored(name) {
+			return
 		}
 		rule := cfg.RuleFor(p)
 		if rule == nil || rule.Action == ActionSkip {
-			return nil
+			return
 		}
 		dir := filepath.Dir(p)
 		if rule.Kind == KindVideo {
-			videos[dir] = append(videos[dir], scanned{p, rule})
+			videoCount[dir]++
+			if selected {
+				videos[dir] = append(videos[dir], scanned{p, rule})
+			}
 		} else {
 			companions[dir] = append(companions[dir], scanned{p, rule})
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	}
+	if len(cfg.Files) > 0 {
+		if err := collectFiles(src, cfg.Files, add); err != nil {
+			return nil, err
+		}
+	} else {
+		err = filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil // unlesbare Ordner überspringen
+			}
+			if d.IsDir() {
+				if p != src && (strings.HasPrefix(d.Name(), ".") || p == dst || d.Name() == TrashDir) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if d.Type().IsRegular() {
+				add(p, true)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var items []*Item
@@ -140,7 +156,8 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 			base := strings.ToLower(strings.TrimSuffix(filepath.Base(v.path), filepath.Ext(v.path)))
 			var cands []scanned
 			cands = append(cands, companions[dir]...)
-			if len(vs) == 1 {
+			alone := videoCount[dir] == 1 // einziges Video im Ordner: alle Begleitdateien gehören dazu
+			if alone {
 				for sub := range subDirNames {
 					for d, cs := range companions {
 						if filepath.Dir(d) == dir && strings.ToLower(filepath.Base(d)) == sub {
@@ -151,7 +168,7 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 			}
 			for _, c := range cands {
 				name := strings.ToLower(filepath.Base(c.path))
-				if used[c.path] || !(strings.HasPrefix(name, base) || len(vs) == 1) {
+				if used[c.path] || !(strings.HasPrefix(name, base) || alone) {
 					continue
 				}
 				used[c.path] = true
@@ -183,6 +200,73 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 
 	PlanTargets(cfg, items)
 	return items, nil
+}
+
+// collectFiles meldet gewählte Einzeldateien und alles, was in ihren Ordnern
+// (und Untertitel-Unterordnern) als Begleitdatei in Frage kommt.
+func collectFiles(root string, files []string, add func(p string, selected bool)) error {
+	selected := map[string]bool{}
+	dirs := map[string]bool{}
+	for _, f := range files {
+		p, err := filepath.Abs(f)
+		if err != nil || !within(root, p) {
+			return fmt.Errorf("%s liegt nicht im gemeinsamen Ordner", f)
+		}
+		st, err := os.Stat(p)
+		if err != nil || !st.Mode().IsRegular() {
+			return fmt.Errorf("Datei %s nicht gefunden", f)
+		}
+		selected[p] = true
+		dirs[filepath.Dir(p)] = true
+	}
+	var read func(dir string, sub bool)
+	read = func(dir string, sub bool) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			p := filepath.Join(dir, e.Name())
+			switch {
+			case e.IsDir() && !sub && subDirNames[strings.ToLower(e.Name())]:
+				read(p, true)
+			case e.Type().IsRegular():
+				add(p, selected[p])
+			}
+		}
+	}
+	for d := range dirs {
+		read(d, false)
+	}
+	return nil
+}
+
+// FilesRoot ist der tiefste Ordner, in dem alle Dateien liegen. Er dient als
+// Quellordner für Verlauf und „Nur umbenennen“.
+func FilesRoot(files []string) (string, error) {
+	if len(files) == 0 {
+		return "", errors.New("keine Dateien gewählt")
+	}
+	root := ""
+	for _, f := range files {
+		p, err := filepath.Abs(f)
+		if err != nil {
+			return "", err
+		}
+		d := filepath.Dir(p)
+		if root == "" {
+			root = d
+			continue
+		}
+		for !within(root, d) {
+			parent := filepath.Dir(root)
+			if parent == root {
+				return "", errors.New("die Dateien liegen auf verschiedenen Laufwerken. Bitte nimm Dateien von einem Laufwerk")
+			}
+			root = parent
+		}
+	}
+	return root, nil
 }
 
 var (

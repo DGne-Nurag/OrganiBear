@@ -199,6 +199,13 @@ dialog::backdrop { background: rgba(31, 20, 11, .7); backdrop-filter: blur(3px);
 .dirs { max-height: 50vh; overflow: auto; padding: 6px 10px; }
 .dirs button { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
 .dirs button:hover { background: var(--bg); }
+.dirs label.file { display: flex; gap: 10px; align-items: center; justify-content: flex-start; text-align: left; padding: 8px 10px; border-radius: 10px; cursor: pointer; overflow-wrap: anywhere; font: inherit; color: inherit; text-transform: none; letter-spacing: normal; margin: 0; }
+.dirs label.file input { width: 20px; height: 20px; flex: none; margin: 0; accent-color: var(--go); }
+.dirs label.file:hover { background: var(--bg); }
+.files { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.files li { display: flex; gap: 8px; align-items: center; background: var(--bg); border: 2px solid var(--field-border); border-radius: 12px; padding: 4px 4px 4px 12px; }
+.files li span { flex: 1; overflow-wrap: anywhere; }
+.files-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .dlg-foot { display: flex; gap: 8px; justify-content: end; padding: 12px 18px 16px; }
 .about { margin-top: 32px; padding: 16px 4px 0; border-top: 2px dashed var(--line); color: var(--muted); font-size: 13px; }
 .about p { margin: 4px 0; }
@@ -335,8 +342,15 @@ a.linkbtn {
       </fieldset>
       <div class="row">
         <div class="field">
-          <label for="src">Quelle (das Durcheinander)</label>
-          <div class="pathpick"><input id="src" placeholder="z. B. D:\Downloads" autocomplete="off"><button type="button" class="btn icon-btn" data-pick="src" aria-label="Quellordner wählen" title="Quellordner wählen"><span aria-hidden="true">📁</span></button></div>
+          <label for="src" id="src-label">Quelle (das Durcheinander)</label>
+          <div class="pathpick" id="src-pick"><input id="src" placeholder="z. B. D:\Downloads" autocomplete="off"><button type="button" class="btn icon-btn" data-pick="src" aria-label="Quellordner wählen" title="Quellordner wählen"><span aria-hidden="true">📁</span></button><button type="button" class="btn icon-btn" data-pickfiles aria-label="Einzelne Videos wählen" title="Einzelne Videos wählen"><span aria-hidden="true">🎞️</span></button></div>
+          <div id="files-box" hidden>
+            <ul class="files" id="files" aria-labelledby="src-label"></ul>
+            <div class="files-actions">
+              <button type="button" class="btn small" data-pickfiles>+ Weitere Videos</button>
+              <button type="button" class="btn small" id="files-clear">Doch einen ganzen Ordner nehmen</button>
+            </div>
+          </div>
         </div>
         <div class="field" id="dst-field">
           <label for="dst">Ziel (die Bibliothek)</label>
@@ -366,6 +380,7 @@ a.linkbtn {
       Es wird erst etwas verschoben, wenn du die Vorschau bestätigst.</span>
       <span id="empty-inplace" hidden>Noch nichts beschnüffelt. Wähle die Quelle und drück auf „Schnüffeln“.<br>
       Es wird erst etwas umbenannt, wenn du die Vorschau bestätigst.</span>
+      <br><span id="files-hint">Nur ein paar Videos? Mit <span aria-hidden="true">🎞️</span> „Einzelne Videos wählen“ nimmt der Bär nur diese, samt ihren Untertiteln.</span>
     </div>
   </section>
 
@@ -527,6 +542,7 @@ a.linkbtn {
   <div class="dlg-head">
     <h2 id="pk-title">Ordner wählen</h2>
     <div class="dlg-path" id="pk-path"></div>
+    <p class="hint" id="pk-hint" hidden>Kreuz alle Videos an, die der Bär nehmen soll. Du darfst dafür auch in andere Ordner wechseln, die Häkchen bleiben.</p>
   </div>
   <div class="dirs" id="pk-dirs" role="group" aria-label="Unterordner"></div>
   <div class="dlg-foot">
@@ -601,8 +617,8 @@ a.linkbtn {
       <p>Du findest die Bilder auch später oben beim Knopf <strong>Hilfe</strong>.</p>
     </div>
     <div data-step="tour1" class="tour">
-      <img src="tour/1.jpg" alt="Der obere Bereich: Auswahl Einsortieren oder Nur umbenennen, darunter die Felder Quelle und Ziel mit Ordner-Knöpfen und der Knopf Schnüffeln." width="1100" height="413">
-      <p><strong>Wo liegen deine Filme?</strong> Zieh den Ordner einfach in das Feld <strong>Quelle</strong>, oder klick auf <span aria-hidden="true">📁</span> und such ihn aus. Bei <strong>Ziel</strong> kommt der Ordner hin, in dem alles ordentlich landen soll.</p>
+      <img src="tour/1.jpg" alt="Der obere Bereich: Auswahl Einsortieren oder Nur umbenennen, darunter die Felder Quelle und Ziel mit Knöpfen für Ordner und einzelne Videos und der Knopf Schnüffeln." width="1100" height="413">
+      <p><strong>Wo liegen deine Filme?</strong> Zieh den Ordner einfach in das Feld <strong>Quelle</strong>, oder klick auf <span aria-hidden="true">📁</span> und such ihn aus. Nur ein paar Videos? Dann nimm <span aria-hidden="true">🎞️</span> und kreuz sie an. Bei <strong>Ziel</strong> kommt der Ordner hin, in dem alles ordentlich landen soll.</p>
     </div>
     <div data-step="tour2" class="tour">
       <img src="tour/2.jpg" alt="Der Knopf Schnüffeln und der Bär, der sagt, wie viele Videos er gefunden hat." width="1100" height="413">
@@ -634,7 +650,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const deco = e => `<span aria-hidden="true">${e}</span>`;
 
-const state = { cfg: null, items: [], online: false, sel: new Set(), open: null, filter: null, placeholders: [], busy: false };
+const state = { cfg: null, items: [], online: false, sel: new Set(), open: null, filter: null, placeholders: [], busy: false, files: [] };
 
 async function api(method, path, body) {
   const res = await fetch(path, {
@@ -891,13 +907,13 @@ $("#scan").onclick = async () => {
   $(".lbl", btn).textContent = "Schnüffelt …";
   bear("sniff", "Schnüffel, schnüffel … ich schaue mir alles an.");
   try {
-    const r = await api("POST", "/api/scan", { source_dir: $("#src").value.trim(), target_dir: $("#dst").value.trim(), in_place: inPlace() });
+    const r = await api("POST", "/api/scan", { source_dir: $("#src").value.trim(), target_dir: $("#dst").value.trim(), in_place: inPlace(), files: state.files });
     state.cfg.in_place = inPlace();
     state.filter = null;
     setItems(r, true);
     const n = state.items.length;
     const todo = state.items.filter(i => ["unmatched", "conflict", "duplicate"].includes(i.status)).length;
-    if (!n) bear("confused", "Hier finde ich keine Videos. Stimmt der Ordner?", 4000);
+    if (!n) bear("confused", state.files.length ? "Bei diesen Dateien finde ich keine Videos." : "Hier finde ich keine Videos. Stimmt der Ordner?", 4000);
     else if (todo) bear("confused", `${n} Videos gefunden. Bei ${todo} bin ich mir nicht sicher, schau bitte kurz drüber.`, 4000);
     else bear("happy", `${n} Videos gefunden, alles klar! Prüf die Vorschau und dann los.`, 2500);
   } catch (e) {
@@ -1228,26 +1244,106 @@ $("#history").addEventListener("click", async e => {
   }
 });
 
-// Ordnerauswahl
-let pickTarget = null;
+// Ordnerauswahl, oder im Modus „files“ Auswahl einzelner Videos
+let pickTarget = null, pickFiles = false;
+const pickSel = new Set();
+const joinPath = (dir, name, sep) => dir + (dir.endsWith(sep) ? "" : sep) + name;
+function pickOK() {
+  $("#pk-ok").textContent = !pickFiles ? "Diesen Ordner nehmen"
+    : pickSel.size ? `${pickSel.size} ${pickSel.size === 1 ? "Video" : "Videos"} nehmen` : "Erst Videos ankreuzen";
+  $("#pk-ok").setAttribute("aria-disabled", pickFiles && !pickSel.size ? "true" : "false");
+}
 async function openDir(path) {
   try {
-    const r = await api("GET", "/api/dirs?path=" + encodeURIComponent(path || ""));
+    const r = await api("GET", "/api/dirs?path=" + encodeURIComponent(path || "") + (pickFiles ? "&files=1" : ""));
     $("#pk-path").textContent = r.path;
     $("#pk-path").dataset.path = r.path;
+    const files = pickFiles ? r.files.map(f => {
+      const full = joinPath(r.path, f, r.sep);
+      return `<label class="file"><input type="checkbox" data-file="${esc(full)}" ${pickSel.has(full) ? "checked" : ""}>${deco("🎬")} ${esc(f)}</label>`;
+    }).join("") : "";
     $("#pk-dirs").innerHTML =
       (r.parent ? `<button type="button" data-dir="${esc(r.parent)}">${deco("⬆️")} eine Ebene hoch</button>` : "") +
-      r.dirs.map(d => `<button type="button" data-dir="${esc(r.path + (r.path.endsWith(r.sep) ? "" : r.sep) + d)}">${deco("📁")} ${esc(d)}</button>`).join("") +
-      (r.dirs.length ? "" : `<p class="hint" style="padding:0 10px">Keine Unterordner.</p>`);
-    ($("#pk-dirs button:nth-child(2)") || $("#pk-dirs button") || $("#pk-ok")).focus();
+      r.dirs.map(d => `<button type="button" data-dir="${esc(joinPath(r.path, d, r.sep))}">${deco("📁")} ${esc(d)}</button>`).join("") + files +
+      (r.dirs.length || files ? "" : `<p class="hint" style="padding:0 10px">${pickFiles ? "Hier liegen keine Videos und keine Unterordner." : "Keine Unterordner."}</p>`);
+    pickOK();
+    ($("#pk-dirs button:nth-child(2)") || $("#pk-dirs button, #pk-dirs input") || $("#pk-ok")).focus();
   } catch (e) {
     if (path) openDir("");
   }
 }
-$$("[data-pick]").forEach(b => (b.onclick = () => { pickTarget = $("#" + b.dataset.pick); $("#picker").showModal(); openDir(pickTarget.value.trim()); }));
+function openPicker(files, start) {
+  pickFiles = files;
+  pickSel.clear();
+  $("#pk-title").textContent = files ? "Videos wählen" : "Ordner wählen";
+  $("#pk-hint").hidden = !files;
+  $("#pk-dirs").setAttribute("aria-label", files ? "Unterordner und Videos" : "Unterordner");
+  $("#picker").showModal();
+  openDir(start);
+}
+$$("[data-pick]").forEach(b => (b.onclick = () => { pickTarget = $("#" + b.dataset.pick); openPicker(false, pickTarget.value.trim()); }));
+$$("[data-pickfiles]").forEach(b => (b.onclick = () => {
+  const last = state.files[state.files.length - 1];
+  openPicker(true, last || $("#src").value.trim());
+}));
 $("#pk-dirs").addEventListener("click", e => { const b = e.target.closest("[data-dir]"); if (b) openDir(b.dataset.dir); });
+$("#pk-dirs").addEventListener("change", e => {
+  const f = e.target.dataset.file;
+  if (!f) return;
+  e.target.checked ? pickSel.add(f) : pickSel.delete(f);
+  pickOK();
+});
 $("#pk-cancel").onclick = () => $("#picker").close();
-$("#pk-ok").onclick = () => { pickTarget.value = $("#pk-path").dataset.path; $("#picker").close(); };
+$("#pk-ok").onclick = () => {
+  if (!pickFiles) {
+    pickTarget.value = $("#pk-path").dataset.path;
+    $("#picker").close();
+    return;
+  }
+  if (!pickSel.size) {
+    bear("confused", "Kreuz zuerst ein oder mehrere Videos an.", 3000);
+    return;
+  }
+  $("#picker").close();
+  addFiles([...pickSel]);
+};
+
+// Einzelne Videos statt eines ganzen Quellordners
+function renderFiles() {
+  const on = state.files.length > 0;
+  $("#files-box").hidden = !on;
+  $("#src-pick").hidden = on;
+  $("#files-hint").hidden = on;
+  $("#src-label").textContent = on ? `Quelle: ${state.files.length} ${state.files.length === 1 ? "Video" : "Videos"} (samt Untertiteln)` : "Quelle (das Durcheinander)";
+  $("#src-label").htmlFor = on ? "" : "src";
+  $("#files").innerHTML = state.files.map((f, i) => {
+    const name = f.split(/[\\/]/).pop();
+    return `<li><span title="${esc(f)}">${esc(name)}</span><button type="button" class="btn small" data-unfile="${i}" aria-label="${esc(name)} entfernen">${deco("✕ ")}Weg</button></li>`;
+  }).join("");
+}
+function addFiles(paths) {
+  const before = state.files.length;
+  for (const p of paths) if (!state.files.includes(p)) state.files.push(p);
+  renderFiles();
+  const added = state.files.length - before;
+  bear("happy", added ? `${added} ${added === 1 ? "Video" : "Videos"} dazugelegt. Jetzt „Schnüffeln“ drücken.` : "Die sind schon alle in der Liste.", 3000);
+  $("#scan").focus();
+}
+$("#files").addEventListener("click", e => {
+  const b = e.target.closest("[data-unfile]");
+  if (!b) return;
+  const i = +b.dataset.unfile;
+  state.files.splice(i, 1);
+  renderFiles();
+  // Fokus auf den nächsten Weg-Knopf, sonst zurück zum Eingabefeld
+  ($(`[data-unfile="${Math.min(i, state.files.length - 1)}"]`) || $("#src")).focus();
+});
+$("#files-clear").onclick = () => {
+  state.files = [];
+  renderFiles();
+  $("#src").focus();
+  bear("idle", "Gut, dann nimm wieder einen ganzen Ordner.", 2500);
+};
 
 // Beenden: per Knopf, oder das Programm hat sich selbst schlafen gelegt.
 // Solange der Tab offen ist, meldet er sich alle 30 Sekunden beim Programm.
@@ -1285,13 +1381,36 @@ $("#quit").onclick = async () => {
 // Im Browser geht das nicht: Browser verraten nur den Ordnernamen.
 const inApp = !!window.runtime?.OnFileDrop;
 if (inApp) {
-  $$(".pathpick").forEach(p => {
-    p.style.setProperty("--wails-drop-target", "drop");
-    $("input", p).placeholder = "Ordner hierher ziehen oder 📁 wählen";
-  });
+  $$(".pathpick, #files-box").forEach(p => p.style.setProperty("--wails-drop-target", "drop"));
+  $("#src").placeholder = "Ordner oder Videos hierher ziehen";
+  $("#dst").placeholder = "Ordner hierher ziehen oder 📁 wählen";
   window.runtime.OnFileDrop(async (x, y, paths) => {
-    const pick = document.elementFromPoint(x, y)?.closest(".pathpick");
-    if (!pick || !paths?.length) return;
+    const at = document.elementFromPoint(x, y);
+    if (!paths?.length) return;
+    // Auf die Quelle: Videos kommen in die Liste, ein einzelner Ordner wird zur Quelle.
+    if (at?.closest("#src-pick, #files-box")) {
+      try {
+        const r = await api("POST", "/api/files/check", { paths });
+        const skipped = r.skipped.map(s => `„${s.name}“ ${s.why}`);
+        if (r.files.length) {
+          addFiles(r.files);
+          if (r.dirs.length || skipped.length) bear("confused", `${r.files.length} ${r.files.length === 1 ? "Video" : "Videos"} dazugelegt. Weggelassen: ${[...skipped, ...r.dirs.map(d => "Ordner " + d.split(/[\\/]/).pop())].slice(0, 4).join(", ")}.`, 6000);
+        } else if (r.dirs.length === 1 && !state.files.length) {
+          $("#src").value = r.dirs[0];
+          $("#src").focus();
+          bear("happy", "Quelle übernommen.", 2000);
+        } else if (r.dirs.length) {
+          bear("confused", state.files.length ? "In die Liste passen nur Videos. Ordner zieh bitte einzeln auf die Quelle, wenn die Liste leer ist." : "Bitte nur einen Ordner auf einmal, oder einzelne Videos.", 5000);
+        } else {
+          bear("confused", `Da ist kein Video dabei: ${skipped.slice(0, 3).join(", ")}.`, 5000);
+        }
+      } catch (e) {
+        bear("confused", e.message, 4000);
+      }
+      return;
+    }
+    const pick = at?.closest(".pathpick");
+    if (!pick) return;
     const input = $("input", pick);
     try {
       // Eine Datei zählt als ihr Ordner, das prüft der Server.
