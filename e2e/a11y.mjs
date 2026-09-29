@@ -117,12 +117,42 @@ async function run() {
       await page.route("**/api/tmdb/test", r => r.fulfill({ status: 200, contentType: "application/json", body: '{"message":"Der Key passt."}' }));
       await page.fill("#g-key", "0123456789abcdef0123456789abcdef");
       await page.keyboard.press("Enter");
-      await page.waitForFunction(() => document.querySelector("#g-title").textContent === "Fertig!")
-        .then(() => ok("Richtiger Key: gespeichert, Fertig-Schritt"), () => fail("Richtiger Key: kein Fertig-Schritt"));
-      await axe(page, `Anleitung fertig (${scheme})`);
+      const title = () => page.textContent("#g-title");
+      await page.waitForFunction(() => document.querySelector("#g-title").textContent === "Der Key passt!")
+        .then(() => ok("Richtiger Key: gespeichert"), () => fail("Richtiger Key: kein Erfolgs-Schritt"));
+      await axe(page, `Key gespeichert (${scheme})`);
       (await page.inputValue("#key")) === "0123456789abcdef0123456789abcdef" ? ok("Key steht in den Einstellungen") : fail("Key fehlt in den Einstellungen");
+      // Aussehen der Bibliothek wählen
       await page.click("#g-next");
-      (await page.locator("#guide").isVisible()) ? fail("Anleitung bleibt offen") : ok("Los geht's schließt die Anleitung");
+      await page.waitForSelector('#g-formats input[value="flat"]');
+      (await page.isChecked('#g-formats input[value="plex"]')) ? ok("Plex-Vorlage ist vorausgewählt") : fail("Keine Vorauswahl");
+      (await page.textContent("#g-formats")).includes("Der Herr der Ringe") ? ok("Beispiele im Ordnerbaum") : fail("Keine Beispiele");
+      await axe(page, `Aussehen wählen (${scheme})`);
+      await page.check('#g-formats input[value="flat"]');
+      await page.click("#g-next");
+      await page.waitForFunction(() => document.querySelector("#g-title").textContent.startsWith("Soll ich"));
+      (await page.inputValue("#tmovie")) === "{title} ({year})" ? ok("Gewählte Vorlage gespeichert") : fail("Vorlage: " + await page.inputValue("#tmovie"));
+      await axe(page, `Tour anbieten (${scheme})`);
+      await page.click("#g-next");
+      for (let n = 1; n <= 5; n++) {
+        const loaded = await page.evaluate(i => { const img = document.querySelector(`[data-step="tour${i}"] img`); return img.complete && img.naturalWidth > 0; }, n);
+        loaded ? ok(`Tour-Bild ${n}`) : fail(`Tour-Bild ${n} fehlt`);
+        if (n === 1) await axe(page, `Tour (${scheme})`);
+        await page.click("#g-next");
+      }
+      (await page.locator("#guide").isVisible()) ? fail("Tour bleibt offen") : ok("Los geht's schließt die Tour");
+      await page.click("#help");
+      (await title()) === "Ordner aussuchen" ? ok("Hilfe öffnet die Tour") : fail("Hilfe: " + await title());
+      await page.click("#g-later");
+      await page.click('nav button[data-tab="settings"]');
+      await page.click("[data-format]");
+      await page.waitForSelector('#g-formats input[value="flat"]:checked');
+      ok("Aussehen in den Einstellungen wieder wählbar");
+      await page.check('#g-formats input[value="plex"]');
+      await page.click("#g-next");
+      await page.waitForFunction(() => !document.querySelector("#guide").open, null, { timeout: 5000 })
+        .then(() => ok("Aussehen gespeichert und geschlossen"), () => fail("Aussehen-Dialog bleibt offen"));
+      await page.click('nav button[data-tab="sort"]');
       // Key wieder entfernen: Die restlichen Tests laufen ohne TMDB.
       await page.evaluate(async () => {
         const c = (await (await fetch("/api/config")).json()).config;
@@ -130,6 +160,12 @@ async function run() {
       });
       await page.reload();
       await page.waitForSelector("#guide[open]");
+      await page.click("#g-later");
+      // Ohne Key geht es trotzdem mit dem Aussehen weiter.
+      await page.waitForFunction(() => document.querySelector("#g-title").textContent.startsWith("Wie soll"))
+        .then(() => ok("„Später“ führt zum Aussehen"), () => fail("„Später“ überspringt das Aussehen"));
+      await page.click("#g-next");
+      await page.waitForFunction(() => document.querySelector("#g-title").textContent.startsWith("Soll ich"));
       await page.click("#g-later");
       await page.reload();
       await page.waitForTimeout(500);

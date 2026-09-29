@@ -207,7 +207,16 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
 /* Anleitung zum TMDB-Key */
 button.linklike { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; font-weight: 700; }
 kbd { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 4px; }
-#guide { width: min(620px, calc(100% - 32px)); }
+#guide { width: min(720px, calc(100% - 32px)); }
+.hdr-btns { display: flex; gap: 8px; align-self: center; }
+.tour img { display: block; width: 100%; height: auto; border-radius: 12px; border: 2px solid var(--line); margin: 4px 0 10px; }
+.formats { border: 0; padding: 0; margin: 8px 0; display: grid; gap: 10px; }
+.fmt { display: flex; gap: 10px; align-items: start; padding: 10px 12px; border: 2px solid var(--line); border-radius: 14px; cursor: pointer; }
+.fmt input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--go); flex: none; }
+.fmt:has(input:checked) { border-color: var(--go); background: var(--bg); }
+.fmt .hint { display: block; font-weight: 400; }
+.tree { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }
+.tree div { padding-left: calc(var(--d) * 14px); }
 #g-title:focus { outline: none; }
 .guide-body { padding: 4px 18px 8px; max-height: 65vh; overflow: auto; }
 .guide-body ol { margin: 8px 0; padding-left: 22px; }
@@ -298,7 +307,10 @@ a.linkbtn {
       <button type="button" data-tab="settings" aria-controls="tab-settings">Einstellungen</button>
       <button type="button" data-tab="history" aria-controls="tab-history">Verlauf</button>
     </nav>
-    <button type="button" class="btn small quit" id="quit">Beenden</button>
+    <div class="hdr-btns">
+      <button type="button" class="btn small" id="help" data-tour>Hilfe</button>
+      <button type="button" class="btn small quit" id="quit">Beenden</button>
+    </div>
   </header>
 
   <section id="bye" class="card bye" aria-labelledby="h-bye" hidden>
@@ -378,6 +390,7 @@ a.linkbtn {
 
     <div class="card">
       <h3 class="label">Namensvorlagen</h3>
+      <p class="hint">Lieber aus fertigen Beispielen wählen? <button type="button" class="linklike" data-format>Aussehen der Bibliothek aussuchen</button></p>
       <div class="field" style="margin-bottom:12px">
         <label for="tmovie">Filme</label>
         <input id="tmovie" class="tmpl" spellcheck="false" aria-describedby="pmovie">
@@ -514,12 +527,12 @@ a.linkbtn {
     <h2 id="g-title" tabindex="-1"></h2>
   </div>
   <div class="guide-body">
-    <div data-step="1">
+    <div data-step="intro">
       <p>Damit der Bär Filme und Serien richtig benennt, fragt er bei <strong>TMDB</strong> nach, einer kostenlosen Film-Datenbank im Internet. Dafür brauchst du einen eigenen, kostenlosen Schlüssel, den <strong>API-Key</strong>. Das dauert etwa 5 Minuten, und du musst es nur einmal machen.</p>
       <p>Tipp: Mach das am Computer. Laut TMDB klappen diese Seiten am Handy nicht gut. Die Seiten sind auf Englisch, der Bär sagt dir, wo du klicken musst.</p>
-      <p><strong>Hast du schon einen Key?</strong> <button type="button" class="linklike" data-go="4">Dann direkt zum Einfügen</button>.</p>
+      <p><strong>Hast du schon einen Key?</strong> <button type="button" class="linklike" data-go="paste">Dann direkt zum Einfügen</button>.</p>
     </div>
-    <div data-step="2">
+    <div data-step="account">
       <ol>
         <li>Klick auf den Knopf. Die Anmeldeseite von TMDB öffnet sich.<br>
           <a class="linkbtn" href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">Konto erstellen auf themoviedb.org<span class="sr-only"> (öffnet neues Fenster)</span></a></li>
@@ -529,7 +542,7 @@ a.linkbtn {
       </ol>
       <p>Du hast schon ein Konto? Dann einfach auf „Weiter“.</p>
     </div>
-    <div data-step="3">
+    <div data-step="request">
       <ol>
         <li>Klick auf den Knopf. Falls TMDB nach deinem Login fragt: Benutzername und Passwort eingeben, dann <strong>„Login“</strong>.<br>
           <a class="linkbtn" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">API-Seite auf themoviedb.org öffnen<span class="sr-only"> (öffnet neues Fenster)</span></a></li>
@@ -546,7 +559,7 @@ a.linkbtn {
         <li>Klick unten auf <strong>„Submit“</strong>.</li>
       </ol>
     </div>
-    <div data-step="4">
+    <div data-step="paste">
       <ol>
         <li>Auf der API-Seite steht jetzt dein <strong>„API Key“</strong>: eine lange Reihe aus Buchstaben und Zahlen. Falls du die Seite geschlossen hast:
           <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">API-Seite wieder öffnen<span class="sr-only"> (öffnet neues Fenster)</span></a>.</li>
@@ -559,9 +572,39 @@ a.linkbtn {
       </div>
       <p class="guide-msg" id="g-msg" role="status"></p>
     </div>
-    <div data-step="5">
-      <p>Geschafft! Der Key ist gespeichert. Ab jetzt holt der Bär Titel, Jahr und Folgennamen von TMDB.</p>
-      <p>Jetzt oben bei <strong>Quelle</strong> den Ordner mit deinen Filmen wählen (oder hineinziehen) und <strong>Schnüffeln</strong> drücken.</p>
+    <div data-step="keydone">
+      <p>Super, der Key ist gespeichert! Ab jetzt holt der Bär Titel, Jahr und Folgennamen von TMDB.</p>
+      <p class="first-only">Als Nächstes suchen wir aus, wie deine Filme und Serien heißen sollen.</p>
+    </div>
+    <div data-step="format">
+      <p>Such dir aus, wie deine Filme und Serien später heißen und in welchen Ordnern sie liegen. Unter jeder Wahl siehst du ein Beispiel. Du kannst das jederzeit in den Einstellungen ändern.</p>
+      <fieldset class="formats" id="g-formats">
+        <legend class="sr-only">Aussehen der Bibliothek</legend>
+      </fieldset>
+    </div>
+    <div data-step="tourask">
+      <p>Möchtest du in fünf Bildern sehen, wie der Bär deine Filme aufräumt? Das dauert eine Minute.</p>
+      <p>Du findest die Bilder auch später oben beim Knopf <strong>Hilfe</strong>.</p>
+    </div>
+    <div data-step="tour1" class="tour">
+      <img src="tour/1.jpg" alt="Der obere Bereich: Auswahl Einsortieren oder Nur umbenennen, darunter die Felder Quelle und Ziel mit Ordner-Knöpfen und der Knopf Schnüffeln." width="1100" height="413">
+      <p><strong>Wo liegen deine Filme?</strong> Zieh den Ordner einfach in das Feld <strong>Quelle</strong>, oder klick auf <span aria-hidden="true">📁</span> und such ihn aus. Bei <strong>Ziel</strong> kommt der Ordner hin, in dem alles ordentlich landen soll.</p>
+    </div>
+    <div data-step="tour2" class="tour">
+      <img src="tour/2.jpg" alt="Der Knopf Schnüffeln und der Bär, der sagt, wie viele Videos er gefunden hat." width="1100" height="413">
+      <p>Dann auf <strong><span aria-hidden="true">🐾 </span>Schnüffeln</strong> drücken. Der Bär schaut sich alle Videos an und sucht die richtigen Namen heraus. Noch wird nichts verändert.</p>
+    </div>
+    <div data-step="tour3" class="tour">
+      <img src="tour/3.jpg" alt="Die Vorschau: Jede Datei mit altem Namen, neuem Namen und farbigen Hinweisen, rechts der Knopf Anpassen." width="1100" height="413">
+      <p>Jetzt siehst du für jede Datei, wie sie heißen wird. <strong>Blau</strong> heißt: alles bereit. <strong>Gelb</strong> heißt: bitte kurz draufschauen. Mit <strong>Anpassen</strong> kannst du jeden Namen ändern. Das Häkchen links bestimmt, was mitmacht.</p>
+    </div>
+    <div data-step="tour4" class="tour">
+      <img src="tour/4.jpg" alt="Die Leiste unter der Liste mit der Anzahl der ausgewählten Dateien und dem grünen Knopf Einsortieren." width="1100" height="413">
+      <p>Passt alles? Dann auf den grünen Knopf <strong><span aria-hidden="true">🐻 </span>Einsortieren</strong>. Der Bär fragt vorher noch einmal nach, dann räumt er auf.</p>
+    </div>
+    <div data-step="tour5" class="tour">
+      <img src="tour/5.jpg" alt="Der Bereich Verlauf mit einem Eintrag und dem Knopf Rückgängig." width="1100" height="413">
+      <p>Ups, doch nicht so? Unter <strong>Verlauf</strong> machst du jeden Durchgang mit einem Klick <strong>rückgängig</strong>. Es geht nichts verloren, und nichts wird überschrieben.</p>
     </div>
   </div>
   <div class="dlg-foot">
@@ -1256,31 +1299,76 @@ if (inApp) {
   });
 }
 
-// Anleitung zum TMDB-Key: öffnet sich beim ersten Start von selbst.
-const GUIDE = ["Worum geht es?", "Kostenloses Konto anlegen", "Key beantragen", "Key einfügen", "Fertig!"];
-let guideStep = 1;
-function guideShow(n) {
-  guideStep = n;
-  $$("#guide [data-step]").forEach(d => (d.hidden = +d.dataset.step !== n));
-  $("#g-title").textContent = GUIDE[n - 1];
-  $("#g-step").textContent = n < GUIDE.length ? `Schritt ${n} von ${GUIDE.length - 1}` : "";
-  $("#g-back").hidden = n === 1 || n === GUIDE.length;
-  $("#g-later").hidden = n === GUIDE.length;
-  $("#g-next").textContent = n === 4 ? "Prüfen und speichern" : n === GUIDE.length ? "Los geht's" : "Weiter";
+// Erster Start: Key holen, Aussehen der Bibliothek wählen, kurze Tour.
+// Dieselben Schritte gibt es später einzeln (Einstellungen, Hilfe).
+const STEPS = {
+  intro: "Worum geht es?", account: "Kostenloses Konto anlegen", request: "Key beantragen", paste: "Key einfügen",
+  keydone: "Der Key passt!", format: "Wie soll deine Bibliothek aussehen?", tourask: "Soll ich dir zeigen, wie alles geht?",
+  tour1: "Ordner aussuchen", tour2: "Schnüffeln", tour3: "Vorschau prüfen", tour4: "Einsortieren", tour5: "Rückgängig machen",
+};
+const KEY_STEPS = ["intro", "account", "request", "paste"];
+const TOUR = ["tour1", "tour2", "tour3", "tour4", "tour5"];
+const FLOWS = {
+  first: [...KEY_STEPS, "keydone", "format", "tourask", ...TOUR],
+  key: [...KEY_STEPS, "keydone"],
+  format: ["format"],
+  tour: TOUR,
+};
+const FORMATS = [
+  { id: "plex", name: "Für Plex, Jellyfin und Kodi", tip: "Empfohlen. Jeder Film bekommt einen eigenen Ordner, Serien sind nach Staffeln sortiert.",
+    movie: "Filme/{title} ({year})/{title} ({year})", series: "Serien/{title} ({year})/Staffel {season:02}/{title} - S{season:02}E{episode:02} - {episode_title}" },
+  { id: "flat", name: "Alles in einem Ordner", tip: "Keine Unterordner, nur schöne Namen. Gut für kleine Sammlungen.",
+    movie: "{title} ({year})", series: "{title} - S{season:02}E{episode:02} - {episode_title}" },
+  { id: "abc", name: "Nach Anfangsbuchstaben", tip: "Wie im Regal: A, B, C … Gut für sehr große Sammlungen.",
+    movie: "Filme/{first_letter}/{title} ({year})/{title} ({year})", series: "Serien/{first_letter}/{title} ({year})/Staffel {season:02}/{title} - S{season:02}E{episode:02} - {episode_title}" },
+  { id: "quality", name: "Mit Bildqualität im Namen", tip: "Wie bei Plex, aber im Namen steht auch die Auflösung, zum Beispiel 1080p.",
+    movie: "Filme/{title} ({year})/{title} ({year}) [{resolution}]", series: "Serien/{title} ({year})/Staffel {season:02}/{title} - S{season:02}E{episode:02} - {episode_title} [{resolution}]" },
+];
+let flow = FLOWS.first, stepId = "intro";
+function guideShow(id) {
+  stepId = id;
+  const i = flow.indexOf(id), last = i === flow.length - 1;
+  $$("#guide [data-step]").forEach(d => (d.hidden = d.dataset.step !== id));
+  $$("#guide .first-only").forEach(e => (e.hidden = flow !== FLOWS.first));
+  $("#g-title").textContent = STEPS[id];
+  $("#g-step").textContent = KEY_STEPS.includes(id) ? `Schritt ${KEY_STEPS.indexOf(id) + 1} von ${KEY_STEPS.length}`
+    : TOUR.includes(id) ? `Bild ${TOUR.indexOf(id) + 1} von ${TOUR.length}` : "";
+  const prev = flow[i - 1];
+  $("#g-back").hidden = !prev || !(KEY_STEPS.includes(prev) || TOUR.includes(prev)) || id === "keydone";
+  $("#g-later").hidden = !(KEY_STEPS.includes(id) || TOUR.includes(id) || id === "tourask");
+  $("#g-later").textContent = id === "tourask" ? "Nein, danke" : TOUR.includes(id) ? "Tour beenden" : "Später";
+  $("#g-next").textContent = id === "paste" ? "Prüfen und speichern" : id === "format" ? "Das nehme ich"
+    : id === "tourask" ? "Ja, zeig's mir" : last ? "Los geht's" : "Weiter";
+  if (id === "format") { renderFormats(); bear("idle", "Such dir aus, wie deine Bibliothek aussehen soll."); }
   $("#g-title").focus();
 }
-function openGuide(n = 1) {
+function openGuide(kind = "first", start) {
+  flow = FLOWS[kind];
   $("#g-msg").textContent = "";
   $("#g-msg").className = "guide-msg";
   if (!$("#guide").open) $("#guide").showModal();
-  guideShow(n);
-  bear("idle", "Ich zeig dir, wie du an den Key kommst.");
+  guideShow(start || flow[0]);
+  bear("idle", kind === "tour" ? "Ich zeig dir, wie alles geht." : kind === "format" ? "Such dir aus, wie deine Bibliothek aussehen soll."
+    : "Ich zeig dir, wie du an den Key kommst.");
+}
+function closeGuide(msg) {
+  $("#guide").close();
+  if (msg) bear("happy", msg, 3500);
+  $("#src").focus();
+}
+function guideNext() {
+  const next = flow[flow.indexOf(stepId) + 1];
+  if (next) guideShow(next);
+  else closeGuide("Los geht's! Wähl oben den Ordner mit deinen Filmen.");
 }
 async function saveGuideCfg(patch) {
   const r = await api("PUT", "/api/config", { ...state.cfg, ...patch });
   state.cfg = r.config;
   $("#key").value = state.cfg.tmdb_api_key || "";
   $("#offline-hint").hidden = !!state.cfg.tmdb_api_key;
+  $("#tmovie").value = state.cfg.movie_template;
+  $("#tseries").value = state.cfg.series_template;
+  $("#tmovie").dispatchEvent(new Event("input"));
 }
 async function guideCheckKey() {
   const key = $("#g-key").value.trim(), msg = $("#g-msg"), input = $("#g-key");
@@ -1293,7 +1381,7 @@ async function guideCheckKey() {
     input.removeAttribute("aria-invalid");
     await saveGuideCfg({ tmdb_api_key: key });
     bear("happy", "Der Key passt! Ich hab ihn gespeichert.", 2500);
-    guideShow(5);
+    guideShow("keydone");
   } catch (e) {
     input.setAttribute("aria-invalid", "true");
     say(/lehnt den API-Key ab/.test(e.message)
@@ -1304,23 +1392,55 @@ async function guideCheckKey() {
     $("#g-next").disabled = false;
   }
 }
+// Beispiel als Ordnerbaum: 📁 Filme / 📁 Matrix (1999) / 🎬 Matrix (1999).mkv
+function tree(path, icon) {
+  const parts = path.split("/");
+  return parts.map((p, i) => `<div style="--d:${i}">${i === parts.length - 1 ? icon : "📁"} ${esc(p)}</div>`).join("");
+}
+async function renderFormats() {
+  const box = $("#g-formats");
+  const cur = FORMATS.find(f => f.movie === state.cfg.movie_template && f.series === state.cfg.series_template);
+  const opts = cur ? FORMATS : [...FORMATS, { id: "keep", name: "Meine jetzigen Namen behalten", tip: "So wie gerade in den Einstellungen.", movie: state.cfg.movie_template, series: state.cfg.series_template }];
+  const pick = cur ? cur.id : "keep";
+  const previews = await Promise.all(opts.map(f => api("POST", "/api/template-preview", { movie_template: f.movie, series_template: f.series }).catch(() => ({}))));
+  box.innerHTML = '<legend class="sr-only">Aussehen der Bibliothek</legend>' + opts.map((f, i) => `
+    <label class="fmt"><input type="radio" name="fmt" value="${f.id}" ${f.id === pick ? "checked" : ""} aria-describedby="fmt-${f.id}">
+      <span><strong>${esc(f.name)}</strong><span class="hint">${esc(f.tip)}</span>
+        <span class="sr-only" id="fmt-${f.id}">Beispiel: ${esc(previews[i].movie || "")}, ${esc(previews[i].series || "")}</span>
+        <span class="tree" aria-hidden="true">${tree(previews[i].movie || "", "🎬")}${tree(previews[i].series || "", "📺")}</span></span></label>`).join("");
+}
+async function guideSaveFormat() {
+  const id = $('#g-formats input[name="fmt"]:checked')?.value;
+  const f = FORMATS.find(x => x.id === id);
+  try {
+    if (f) await saveGuideCfg({ movie_template: f.movie, series_template: f.series });
+    bear("happy", "Gemerkt! So sehen deine Namen ab jetzt aus.", 2500);
+    guideNext();
+  } catch (e) {
+    bear("confused", e.message, 4000);
+  }
+}
 $("#g-next").onclick = () => {
-  if (guideStep === 4) return guideCheckKey();
-  if (guideStep === GUIDE.length) { $("#guide").close(); $("#src").focus(); return; }
-  guideShow(guideStep + 1);
+  if (stepId === "paste") return guideCheckKey();
+  if (stepId === "format") return guideSaveFormat();
+  guideNext();
 };
-$("#g-back").onclick = () => guideShow(guideStep - 1);
+$("#g-back").onclick = () => guideShow(flow[flow.indexOf(stepId) - 1]);
 $("#g-later").onclick = async () => {
-  $("#guide").close();
-  bear("idle", "Kein Problem. Die Anleitung findest du jederzeit in den Einstellungen.", 4000);
+  if (TOUR.includes(stepId) || stepId === "tourask") return closeGuide("Die Bilder findest du jederzeit oben bei „Hilfe“.");
+  // Key übersprungen: beim ersten Start trotzdem noch das Aussehen wählen.
   if (!state.cfg.tmdb_guide_skipped) await saveGuideCfg({ tmdb_guide_skipped: true }).catch(e => bear("confused", e.message));
+  if (flow === FLOWS.first) return guideShow("format");
+  closeGuide();
+  bear("idle", "Kein Problem. Die Anleitung findest du jederzeit in den Einstellungen.", 4000);
 };
 $("#g-key").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); guideCheckKey(); } });
 document.addEventListener("click", e => {
-  const g = e.target.closest("[data-guide]");
-  if (g) openGuide(1);
+  if (e.target.closest("[data-guide]")) openGuide("key");
+  if (e.target.closest("[data-format]")) openGuide("format");
+  if (e.target.closest("[data-tour]")) openGuide("tour");
   const go = e.target.closest("#guide [data-go]");
-  if (go) guideShow(+go.dataset.go);
+  if (go) guideShow(go.dataset.go);
   const c = e.target.closest("[data-copy]");
   if (c) {
     const text = $("#" + c.dataset.copy).textContent;
@@ -1330,7 +1450,7 @@ document.addEventListener("click", e => {
 });
 
 loadConfig()
-  .then(() => { if (!state.cfg.tmdb_api_key && !state.cfg.tmdb_guide_skipped) openGuide(1); })
+  .then(() => { if (!state.cfg.tmdb_api_key && !state.cfg.tmdb_guide_skipped) openGuide("first"); })
   .then(refreshItems).catch(e => bear("confused", e.message));
 </script>
 </body>
