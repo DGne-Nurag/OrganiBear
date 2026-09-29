@@ -362,8 +362,10 @@ a.linkbtn {
     </div>
     <div class="card empty" id="empty">
       <div class="big" aria-hidden="true">🍯</div>
-      Noch nichts beschnüffelt. Wähle Quelle und Ziel und drück auf „Schnüffeln“.<br>
-      Es wird erst etwas verschoben, wenn du die Vorschau bestätigst.
+      <span id="empty-sort">Noch nichts beschnüffelt. Wähle Quelle und Ziel und drück auf „Schnüffeln“.<br>
+      Es wird erst etwas verschoben, wenn du die Vorschau bestätigst.</span>
+      <span id="empty-inplace" hidden>Noch nichts beschnüffelt. Wähle die Quelle und drück auf „Schnüffeln“.<br>
+      Es wird erst etwas umbenannt, wenn du die Vorschau bestätigst.</span>
     </div>
   </section>
 
@@ -869,6 +871,8 @@ function setMode(on) {
   $(`input[name="mode"][value="${on ? "inplace" : "sort"}"]`).checked = true;
   $("#dst-field").hidden = on;
   $("#inplace-hint").hidden = !on;
+  $("#empty-sort").hidden = on;
+  $("#empty-inplace").hidden = !on;
   $(".lbl", $("#apply")).textContent = on ? "Umbenennen" : "Einsortieren";
 }
 $$('input[name="mode"]').forEach(r => r.addEventListener("change", () => {

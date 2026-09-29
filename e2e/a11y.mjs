@@ -289,6 +289,8 @@ async function run() {
       const src = makeFixtures();
       await page.check('input[name="mode"][value="inplace"]');
       (await page.locator("#dst").isVisible()) ? fail("Zielfeld bleibt sichtbar") : ok("Zielfeld ausgeblendet");
+      (await page.evaluate(() => !document.querySelector("#empty-inplace").hidden && document.querySelector("#empty-sort").hidden))
+        ? ok("Leere Liste erklärt das Umbenennen") : fail("Leere Liste spricht noch von Ziel und Verschieben");
       await axe(page, "Nur umbenennen");
       await page.fill("#src", src);
       await page.click("#scan");
