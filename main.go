@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"time"
 )
 
 //go:embed web
@@ -53,16 +54,39 @@ func main() {
 	static, _ := fs.Sub(webFiles, "web")
 	srv := NewServer(cfg, *cfgPath, static)
 
+	if err := requireLoopback(*addr); err != nil {
+		log.Fatal(err)
+	}
 	ln, err := listen(*addr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	url := "http://" + ln.Addr().String()
+	url := srv.LoginURL("http://" + ln.Addr().String())
 	fmt.Printf("   Konfiguration: %s\n   Webinterface:  %s\n   Beenden mit Strg+C\n\n", *cfgPath, url)
 	if !*noBrowser {
 		openBrowser(url)
 	}
-	log.Fatal(http.Serve(ln, srv.Handler()))
+	hs := &http.Server{
+		Handler:           srv.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
+	log.Fatal(hs.Serve(ln))
+}
+
+// requireLoopback verhindert, dass die Oberfläche im Netzwerk erreichbar wird.
+func requireLoopback(addr string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+	if host == "localhost" {
+		return nil
+	}
+	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("-addr %s: OrganiBear lauscht aus Sicherheitsgründen nur auf 127.0.0.1, ::1 oder localhost", addr)
+	}
+	return nil
 }
 
 // listen probiert bei belegtem Port die nächsten zehn Ports durch.

@@ -75,10 +75,15 @@ func (t *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 		}
 		resp, err := t.HTTP.Do(req)
 		if err != nil {
+			// Die URL enthält den API-Key, also nur die eigentliche Ursache melden.
+			var ue *url.Error
+			if errors.As(err, &ue) {
+				err = ue.Err
+			}
 			return fmt.Errorf("TMDB nicht erreichbar: %w", err)
 		}
 		defer resp.Body.Close()
-		body, err = io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+		body, err = io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 		if err != nil {
 			return err
 		}
@@ -91,6 +96,9 @@ func (t *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 			return fmt.Errorf("TMDB antwortet mit %s", resp.Status)
 		}
 		t.mu.Lock()
+		if len(t.cache) > 500 {
+			clear(t.cache)
+		}
 		t.cache[u] = body
 		t.mu.Unlock()
 	}

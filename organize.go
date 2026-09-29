@@ -275,6 +275,7 @@ func hasKey(cfg Config) bool { return strings.TrimSpace(cfg.TMDBKey) != "" }
 // Journal protokolliert einen Sortierlauf, damit er rückgängig gemacht werden kann.
 type Journal struct {
 	Created   time.Time  `json:"created"`
+	SourceDir string     `json:"source_dir"`
 	TargetDir string     `json:"target_dir"`
 	Ops       []FileOp   `json:"ops"`
 	Undone    *time.Time `json:"undone,omitempty"`
@@ -283,7 +284,8 @@ type Journal struct {
 // Apply führt die ausgewählten Einträge aus und schreibt ein Journal.
 func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string) (*Journal, string, error) {
 	dst, _ := filepath.Abs(cfg.TargetDir)
-	j := &Journal{Created: time.Now(), TargetDir: dst}
+	src, _ := filepath.Abs(cfg.SourceDir)
+	j := &Journal{Created: time.Now(), SourceDir: src, TargetDir: dst}
 	for _, it := range items {
 		if !ids[it.ID] {
 			continue
@@ -302,7 +304,11 @@ func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string) (*Jou
 			if op.Source == op.Target {
 				continue
 			}
-			if err := runOp(op); err != nil {
+			err := insideReal(dst, op.Target)
+			if err == nil {
+				err = runOp(op)
+			}
+			if err != nil {
 				it.Status, it.Message = StatusError, filepath.Base(op.Source)+": "+err.Error()
 				break
 			}
@@ -312,7 +318,7 @@ func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string) (*Jou
 	if len(j.Ops) == 0 {
 		return j, "", nil
 	}
-	if err := os.MkdirAll(journalDir, 0o755); err != nil {
+	if err := os.MkdirAll(journalDir, 0o700); err != nil {
 		return j, "", err
 	}
 	path := filepath.Join(journalDir, j.Created.Format("2006-01-02_15-04-05")+".json")
@@ -327,7 +333,7 @@ func writeJournal(path string, j *Journal) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 func ReadJournal(path string) (*Journal, error) {
@@ -349,6 +355,9 @@ func Undo(path string) ([]string, error) {
 	if j.Undone != nil {
 		return nil, errors.New("dieser Lauf wurde schon rückgängig gemacht")
 	}
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
 	var problems []string
 	for i := len(j.Ops) - 1; i >= 0; i-- {
 		op := j.Ops[i]
@@ -357,7 +366,9 @@ func Undo(path string) ([]string, error) {
 		case ActionMove:
 			err = moveFile(op.Target, op.Source)
 		case ActionCopy:
-			err = os.Remove(op.Target)
+			if err = requireRegular(op.Target); err == nil {
+				err = os.Remove(op.Target)
+			}
 		}
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			problems = append(problems, filepath.Base(op.Target)+": "+err.Error())
@@ -368,4 +379,24 @@ func Undo(path string) ([]string, error) {
 	now := time.Now()
 	j.Undone = &now
 	return problems, writeJournal(path, j)
+}
+
+// validate stellt sicher, dass ein (evtl. manipuliertes) Journal nur Dateien
+// innerhalb von Quell- und Zielordner anfasst.
+func (j *Journal) validate() error {
+	bad := errors.New("Verlaufseintrag ist ungültig")
+	for _, root := range []string{j.SourceDir, j.TargetDir} {
+		if !filepath.IsAbs(root) || filepath.Clean(root) != root {
+			return bad
+		}
+	}
+	for _, op := range j.Ops {
+		if op.Action != ActionMove && op.Action != ActionCopy {
+			return bad
+		}
+		if !within(j.TargetDir, op.Target) || op.Target == j.TargetDir || !within(j.SourceDir, op.Source) || op.Source == j.SourceDir {
+			return bad
+		}
+	}
+	return nil
 }

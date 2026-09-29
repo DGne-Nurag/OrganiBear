@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -140,9 +141,22 @@ func SaveConfig(path string, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+	// Frische Temp-Datei mit 0600, damit der API-Key nicht lesbar für andere wird.
+	f, err := os.CreateTemp(filepath.Dir(path), ".organibear-*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	defer os.Remove(f.Name())
+	if err := f.Chmod(0o600); err != nil && runtime.GOOS != "windows" {
+		f.Close()
+		return err
+	}
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), path)
 }

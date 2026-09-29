@@ -2,8 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -25,10 +29,16 @@ type Server struct {
 	db         *TMDB
 	items      []*Item
 	static     fs.FS
+	token      string // Zugangsschlüssel pro Programmstart
 }
 
 func NewServer(cfg Config, cfgPath string, static fs.FS) *Server {
+	tok := make([]byte, 24)
+	if _, err := rand.Read(tok); err != nil {
+		panic(err)
+	}
 	return &Server{
+		token:      hex.EncodeToString(tok),
 		cfg:        cfg,
 		cfgPath:    cfgPath,
 		journalDir: filepath.Join(filepath.Dir(cfgPath), "organibear-verlauf"),
@@ -50,27 +60,68 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/undo", s.undo)
 	mux.HandleFunc("GET /api/dirs", s.dirs)
 	mux.Handle("GET /", http.FileServerFS(s.static))
-	return guard(mux)
+	return s.guard(mux)
 }
 
-// guard lässt nur Anfragen von localhost zu und verlangt für Änderungen einen
-// eigenen Header. So kann keine fremde Webseite im Browser Dateien verschieben.
-func guard(next http.Handler) http.Handler {
+const cookieName = "organibear"
+
+// LoginURL ist die Adresse, die der Browser beim Start öffnet. Der Schlüssel
+// darin wird gegen ein Cookie getauscht.
+func (s *Server) LoginURL(base string) string { return base + "/?t=" + s.token }
+
+// guard schützt die Oberfläche:
+//   - nur Host localhost/127.0.0.1/::1 (gegen DNS-Rebinding),
+//   - Zugang nur mit dem Schlüssel aus dem Startlink (gegen andere Programme
+//     und Benutzer auf demselben Rechner),
+//   - Änderungen nur mit eigenem Header (gegen Formulare fremder Webseiten),
+//   - keine Einbettung in fremde Seiten (gegen Clickjacking).
+func (s *Server) guard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https://image.tmdb.org data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+
 		host := r.Host
-		if h, _, err := net.SplitHostPort(host); err == nil {
-			host = h
+		if hh, _, err := net.SplitHostPort(host); err == nil {
+			host = hh
 		}
 		if host != "localhost" && host != "127.0.0.1" && host != "::1" {
 			http.Error(w, "nur lokal erreichbar", http.StatusForbidden)
 			return
 		}
-		if r.Method != http.MethodGet && r.Header.Get("X-OrganiBear") != "1" {
+
+		if t := r.URL.Query().Get("t"); t != "" && r.URL.Path == "/" {
+			if subtle.ConstantTimeCompare([]byte(t), []byte(s.token)) != 1 {
+				denied(w)
+				return
+			}
+			http.SetCookie(w, &http.Cookie{Name: cookieName, Value: s.token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		c, err := r.Cookie(cookieName)
+		if err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(s.token)) != 1 {
+			denied(w)
+			return
+		}
+
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Header.Get("X-OrganiBear") != "1" {
 			http.Error(w, "fehlender Header", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func denied(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusForbidden)
+	fmt.Fprint(w, `<!doctype html><html lang="de"><meta charset="utf-8"><title>OrganiBear</title>
+<body style="font-family:system-ui,sans-serif;background:#fff7ea;color:#3b2616;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center">
+<main><p style="font-size:64px;margin:0" aria-hidden="true">ʕ•ᴥ•ʔ</p><h1>Bitte über den Startlink öffnen</h1>
+<p>Aus Sicherheitsgründen lässt dich der Bär nur mit dem Link herein, den OrganiBear beim Start öffnet<br>bzw. im Programmfenster anzeigt. Nach einem Neustart gibt es einen neuen Link.</p></main>`)
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
@@ -214,7 +265,8 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, errors.New("Eintrag nicht gefunden"))
 		return
 	}
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
 	switch {
 	case req.Info != nil:
 		it.Info = *req.Info

@@ -23,12 +23,10 @@ in eine ordentliche Bibliothek.
 ## Loslegen
 
 1. Programm für dein System bauen (siehe unten) oder aus den CI-Artefakten laden.
-2. Starten. Das Webinterface öffnet sich unter <http://127.0.0.1:8765>.
+2. Starten. Das Webinterface öffnet sich im Browser. Der Link steht auch im Programmfenster.
 3. Unter **Einstellungen** den TMDB-Key eintragen (kostenlos unter
    [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)), Vorlagen und Dateiregeln anpassen.
 4. Unter **Sortieren** Quelle und Ziel wählen, **Schnüffeln** drücken, Vorschau prüfen, **Einsortieren**.
-
-Das Webinterface ist nur vom eigenen Rechner aus erreichbar.
 
 ### Optionen
 
@@ -38,6 +36,14 @@ organibear [-addr 127.0.0.1:8765] [-config pfad/organibear.json] [-no-browser]
 
 Die Konfiguration liegt standardmäßig als `organibear.json` neben dem Programm,
 der Verlauf im Ordner `organibear-verlauf` daneben.
+
+## Sicherheit und Barrierefreiheit
+
+- Das Webinterface lauscht nur auf dem eigenen Rechner (127.0.0.1) und lässt sich nicht ins Netzwerk öffnen.
+- Zugang gibt es nur über den Startlink mit einem zufälligen Schlüssel, der bei jedem Start neu erzeugt wird. Andere Programme, andere Benutzer und fremde Webseiten im Browser kommen nicht an die Oberfläche.
+- Dateien werden nie überschrieben, auch nicht bei gleichzeitigen Schreibzugriffen, sofern das Dateisystem Hardlinks kann (NTFS, APFS, ext4 …). Symlinks werden weder als Quelle verfolgt noch als Ausweg aus dem Zielordner zugelassen.
+- Konfiguration (mit API-Key) und Verlauf sind unter macOS und Linux nur für den eigenen Benutzer lesbar. Der Verlauf wird vor jedem Rückgängigmachen geprüft.
+- Die Oberfläche ist mit Tastatur und Screenreader bedienbar, erfüllt die Kontrastvorgaben nach WCAG 2.2 AA in hellem und dunklem Modus und respektiert „Bewegung reduzieren“.
 
 ## Vorlagen
 

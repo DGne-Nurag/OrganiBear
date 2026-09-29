@@ -7,56 +7,72 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐻</text></svg>">
 <style>
 :root {
+  color-scheme: light dark;
   --bg: #fff7ea;
   --card: #ffffff;
   --ink: #3b2616;
-  --muted: #8a7462;
+  --muted: #6f5a48;
   --line: #f0dfc8;
+  --field-border: #a08568;
+  --focus: #3b2616;
   --honey: #f4a73b;
   --honey-dark: #d9861a;
+  --honey-ink: #8a5208;
+  --on-honey: #3b2616;
   --fur: #a86b3c;
   --fur-dark: #7a4a24;
-  --leaf: #4c8b5a;
+  --go: #356b42;
+  --go-dark: #26502f;
+  --leaf-ink: #356b42;
   --leaf-soft: #e3f2e2;
-  --berry: #c8504a;
+  --berry: #a33a35;
   --berry-soft: #fbe4e1;
+  --sky: #2f66a0;
   --sky-soft: #e5f0fb;
-  --sky: #3d78b5;
   --sun-soft: #fff0cc;
   --radius: 18px;
   --shadow: 0 6px 0 rgba(122, 74, 36, .08), 0 12px 30px rgba(122, 74, 36, .08);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1f1812; --card: #2b2119; --ink: #f6e7d4; --muted: #b59c84; --line: #44352a;
-    --leaf-soft: #22382a; --berry-soft: #43241f; --sky-soft: #1f3044; --sun-soft: #43361a;
+    --bg: #1f1812; --card: #2b2119; --ink: #f6e7d4; --muted: #c9b29a; --line: #44352a;
+    --field-border: #9a8068; --focus: #f4a73b;
+    --honey-ink: #f4a73b; --on-honey: #1f1812;
+    --leaf-ink: #7cc48c; --leaf-soft: #22382a;
+    --berry: #f08a82; --berry-soft: #43241f;
+    --sky: #7fb2e8; --sky-soft: #1f3044;
+    --sun-soft: #43361a;
     --shadow: 0 6px 0 rgba(0,0,0,.25);
   }
 }
 * { box-sizing: border-box; }
+html { scroll-padding-bottom: 140px; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font-family: Nunito, "Segoe UI Rounded", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: 15px; line-height: 1.4;
   background-image: radial-gradient(circle at 20px 20px, rgba(244,167,59,.12) 3px, transparent 4px);
   background-size: 48px 48px;
 }
-main { max-width: 1100px; margin: 0 auto; padding: 16px 16px 120px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px 16px 140px; }
 header { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 8px 0 20px; }
-.brand { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 280px; }
-.brand h1 { margin: 0; font-size: 30px; letter-spacing: -.5px; }
-.brand h1 span { color: var(--honey-dark); }
+.brand { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 260px; }
+.brand h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: -.5px; line-height: 1.1; }
+.brand h1 span { color: var(--honey-ink); }
 .bubble {
   position: relative; background: var(--card); border: 2px solid var(--line); border-radius: 16px;
-  padding: 8px 14px; font-weight: 600; max-width: 380px; box-shadow: var(--shadow);
+  padding: 8px 14px; font-weight: 600; max-width: 400px; min-height: 42px;
 }
 .bubble::before {
-  content: ""; position: absolute; left: -10px; top: 18px; border: 8px solid transparent;
+  content: ""; position: absolute; left: -10px; top: 12px; border: 8px solid transparent;
   border-right-color: var(--line); border-left: 0;
 }
-nav { display: flex; gap: 6px; background: var(--card); padding: 5px; border-radius: 999px; box-shadow: var(--shadow); }
+nav { display: flex; gap: 6px; background: var(--card); padding: 5px; border-radius: 999px; box-shadow: var(--shadow); flex-wrap: wrap; }
 nav button { border: 0; background: transparent; color: var(--ink); padding: 8px 16px; border-radius: 999px; font: inherit; font-weight: 700; cursor: pointer; }
-nav button.active { background: var(--honey); color: #fff; }
+nav button:hover { background: var(--bg); }
+nav button[aria-current] { background: var(--honey); color: var(--on-honey); }
 
 /* Bär */
 #bear { width: 96px; height: 96px; flex: none; overflow: visible; }
@@ -64,7 +80,7 @@ nav button.active { background: var(--honey); color: #fff; }
 #bear .eyes { transform-origin: 60px 58px; animation: blink 4.5s infinite; }
 @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
 #bear[data-mood=sniff] .head { animation: sniff .5s ease-in-out infinite alternate; transform-origin: 60px 100px; }
-#bear[data-mood=sniff] .nose { animation: wiggle .18s infinite alternate; transform-origin: 60px 72px; }
+#bear[data-mood=sniff] .nose { animation: wiggle .18s infinite alternate; transform-origin: 60px 74px; }
 @keyframes sniff { from { transform: rotate(-6deg); } to { transform: rotate(6deg); } }
 @keyframes wiggle { from { transform: translateY(0) scale(1); } to { transform: translateY(-1.5px) scale(1.12); } }
 #bear[data-mood=happy] .head { animation: hop .45s ease-in-out 3; }
@@ -75,49 +91,59 @@ nav button.active { background: var(--honey); color: #fff; }
 #bear[data-mood=confused] .question { opacity: 1; }
 
 .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin-bottom: 16px; }
+h2.label, h3.label { margin: 0 0 8px; }
 .row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
-.field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 200px; }
+.field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 180px; }
+.field.narrow { flex: 0 1 100px; min-width: 80px; }
+.field.mid { flex: 0 1 140px; min-width: 110px; }
 .field label, .label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
 .pathpick { display: flex; gap: 6px; }
 input, select {
-  font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--line);
+  font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--field-border);
   border-radius: 12px; padding: 9px 12px; width: 100%; min-width: 0;
 }
-input:focus, select:focus { outline: none; border-color: var(--honey); }
+input::placeholder { color: var(--muted); opacity: 1; }
+input:focus, select:focus { border-color: var(--honey); }
+input[aria-invalid=true] { border-color: var(--berry); }
 button.btn {
   font: inherit; font-weight: 800; border: 0; border-radius: 14px; padding: 10px 18px; cursor: pointer;
   background: var(--line); color: var(--ink); white-space: nowrap; transition: transform .1s;
 }
+button.btn:hover { filter: brightness(.97); }
 button.btn:active { transform: translateY(2px); }
-button.btn.primary { background: var(--honey); color: #fff; box-shadow: 0 4px 0 var(--honey-dark); }
-button.btn.go { background: var(--leaf); color: #fff; box-shadow: 0 4px 0 #356643; }
+button.btn.primary { background: var(--honey); color: var(--on-honey); box-shadow: 0 4px 0 var(--honey-dark); }
+button.btn.go { background: var(--go); color: #fff; box-shadow: 0 4px 0 var(--go-dark); }
 button.btn.small { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
-button.btn:disabled { opacity: .45; cursor: default; }
+button.btn:disabled, button.btn[aria-disabled=true] { opacity: .5; cursor: default; }
 .icon-btn { flex: none; width: 44px; padding: 0 !important; }
 
-.chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
-.chip { padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 13px; background: var(--line); }
-.s-ready { background: var(--leaf-soft); color: var(--leaf); }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; }
+.chip { padding: 5px 12px; border-radius: 999px; font: inherit; font-weight: 700; font-size: 13px; background: var(--line); color: var(--ink); border: 2px solid transparent; cursor: pointer; }
+.chip[aria-pressed=true] { border-color: currentColor; }
+.s-ready { background: var(--leaf-soft); color: var(--leaf-ink); }
 .s-offline { background: var(--sky-soft); color: var(--sky); }
-.s-unmatched, .s-conflict { background: var(--sun-soft); color: var(--honey-dark); }
+.s-unmatched, .s-conflict { background: var(--sun-soft); color: var(--honey-ink); }
 .s-error { background: var(--berry-soft); color: var(--berry); }
-.s-done, .s-same { background: var(--line); color: var(--muted); }
+.s-done, .s-same, .s-neutral { background: var(--line); color: var(--ink); }
 
 .item { display: grid; grid-template-columns: 28px 48px 1fr auto; gap: 12px; align-items: center; padding: 12px 6px; border-top: 2px dashed var(--line); }
 .item:first-child { border-top: 0; }
-.item input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--leaf); }
+.item input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--go); }
 .poster { width: 48px; height: 68px; border-radius: 8px; background: var(--line); object-fit: cover; display: grid; place-items: center; font-size: 22px; }
 .paths { min-width: 0; }
 .old { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .new { font-weight: 700; overflow-wrap: anywhere; }
-.new::before { content: "→ "; color: var(--honey-dark); }
-.meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; }
+.arrow { color: var(--honey-ink); }
+.meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; align-items: center; }
 .tag { padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+.msg { color: var(--muted); }
 .side { display: flex; flex-direction: column; gap: 6px; align-items: end; }
 .edit { grid-column: 3 / -1; background: var(--bg); border-radius: 14px; padding: 14px; }
-.cands { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; }
-.cand { flex: none; width: 128px; border: 2px solid var(--line); border-radius: 12px; padding: 6px; cursor: pointer; background: var(--card); text-align: left; font: inherit; color: inherit; }
-.cand.on { border-color: var(--leaf); }
+.edit .field label { font-size: 11px; }
+.cands { display: flex; gap: 8px; overflow-x: auto; padding: 3px 3px 8px; margin-bottom: 10px; }
+.cand { flex: none; width: 128px; border: 2px solid var(--line); border-radius: 12px; padding: 6px; cursor: pointer; background: var(--card); text-align: left; font: inherit; color: inherit; position: relative; }
+.cand[aria-pressed=true] { border-color: var(--go); box-shadow: 0 0 0 2px var(--go); }
+.cand[aria-pressed=true]::after { content: "✓"; position: absolute; top: 10px; right: 10px; background: var(--go); color: #fff; border-radius: 999px; width: 24px; height: 24px; display: grid; place-items: center; font-weight: 900; }
 .cand img, .cand .ph { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; background: var(--line); display: grid; place-items: center; font-size: 28px; }
 .cand b { display: block; font-size: 13px; margin-top: 4px; }
 .cand small { color: var(--muted); }
@@ -137,24 +163,28 @@ th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spa
 .preview { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--bg); border-radius: 10px; padding: 8px 10px; margin-top: 6px; overflow-wrap: anywhere; }
 .preview.err { color: var(--berry); }
 .ph-list { display: flex; gap: 6px; flex-wrap: wrap; }
-.ph-list button { font: inherit; font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; border: 2px dashed var(--honey); color: var(--honey-dark); background: transparent; border-radius: 8px; padding: 3px 8px; cursor: pointer; }
+.ph-list button { font: inherit; font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; border: 2px dashed var(--honey); color: var(--honey-ink); background: transparent; border-radius: 8px; padding: 4px 8px; cursor: pointer; }
 .hint { color: var(--muted); font-size: 13px; }
-.hint a { color: var(--honey-dark); }
+.hint a { color: var(--honey-ink); }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; background: var(--bg); padding: 1px 4px; border-radius: 4px; }
 .hist { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-top: 2px dashed var(--line); flex-wrap: wrap; }
 .hist:first-child { border-top: 0; }
-.hist ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+.hist h3 { font-size: 15px; margin: 0; display: inline; }
+.hist ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 
 dialog { border: 0; border-radius: var(--radius); padding: 0; width: min(560px, calc(100% - 32px)); background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
-dialog::backdrop { background: rgba(59, 38, 22, .35); }
-.dlg-head { padding: 16px 18px 8px; font-weight: 800; overflow-wrap: anywhere; }
-.dirs { max-height: 50vh; overflow: auto; padding: 0 10px; }
+dialog::backdrop { background: rgba(59, 38, 22, .45); }
+.dlg-head { padding: 16px 18px 4px; }
+.dlg-head h2 { margin: 0 0 4px; font-size: 18px; }
+.dlg-path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.dirs { max-height: 50vh; overflow: auto; padding: 6px 10px; }
 .dirs button { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
 .dirs button:hover { background: var(--bg); }
 .dlg-foot { display: flex; gap: 8px; justify-content: end; padding: 12px 18px 16px; }
-.toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-weight: 700; z-index: 10; }
 [hidden] { display: none !important; }
 @media (max-width: 640px) {
-  .item { grid-template-columns: 24px 1fr; }
+  html { scroll-padding-bottom: 160px; }
+  .item { grid-template-columns: 26px 1fr; }
   .item .poster { display: none; }
   .side { grid-column: 2; align-items: start; flex-direction: row; flex-wrap: wrap; }
   .edit { grid-column: 1 / -1; }
@@ -162,13 +192,21 @@ dialog::backdrop { background: rgba(59, 38, 22, .35); }
   .bar .grow { flex-basis: 100%; text-align: center; }
   .bar button { flex: 1; }
 }
+@media (max-width: 420px) {
+  nav { width: 100%; border-radius: 18px; }
+  nav button { flex: 1; padding: 8px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #bear, #bear * { animation: none !important; transition: none !important; }
+  button.btn:active { transform: none; }
+}
 </style>
 </head>
 <body>
 <main>
   <header>
     <div class="brand">
-      <svg id="bear" viewBox="0 0 120 120" data-mood="idle" aria-hidden="true">
+      <svg id="bear" viewBox="0 0 120 120" data-mood="idle" aria-hidden="true" focusable="false">
         <g class="head">
           <circle cx="28" cy="32" r="17" fill="var(--fur-dark)"/>
           <circle cx="92" cy="32" r="17" fill="var(--fur-dark)"/>
@@ -191,57 +229,61 @@ dialog::backdrop { background: rgba(59, 38, 22, .35); }
           <ellipse class="nose" cx="60" cy="74" rx="7.5" ry="5.5" fill="#2b1a10"/>
           <path d="M60 79 q0 6 -7 7 M60 79 q0 6 7 7" stroke="#2b1a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>
         </g>
-        <text class="question" x="100" y="22" font-size="26" font-weight="900" fill="var(--honey-dark)">?</text>
+        <text class="question" x="100" y="22" font-size="26" font-weight="900" fill="var(--honey)">?</text>
       </svg>
       <div>
         <h1>Organi<span>Bear</span></h1>
-        <div class="bubble" id="say">Hallo! Zeig mir deinen Medienhaufen, ich räume auf.</div>
+        <div class="bubble" id="say" role="status" aria-live="polite" aria-atomic="true">Hallo! Zeig mir deinen Medienhaufen, ich räume auf.</div>
       </div>
     </div>
-    <nav>
-      <button data-tab="sort" class="active">Sortieren</button>
-      <button data-tab="settings">Einstellungen</button>
-      <button data-tab="history">Verlauf</button>
+    <nav aria-label="Bereiche">
+      <button type="button" data-tab="sort" aria-controls="tab-sort" aria-current="page">Sortieren</button>
+      <button type="button" data-tab="settings" aria-controls="tab-settings">Einstellungen</button>
+      <button type="button" data-tab="history" aria-controls="tab-history">Verlauf</button>
     </nav>
   </header>
 
   <!-- Sortieren -->
-  <section id="tab-sort">
+  <section id="tab-sort" aria-labelledby="h-sort">
+    <h2 id="h-sort" class="sr-only" tabindex="-1">Sortieren</h2>
     <div class="card">
       <div class="row">
         <div class="field">
           <label for="src">Quelle (das Durcheinander)</label>
-          <div class="pathpick"><input id="src" placeholder="z. B. D:\Downloads"><button class="btn icon-btn" data-pick="src" title="Ordner wählen">📁</button></div>
+          <div class="pathpick"><input id="src" placeholder="z. B. D:\Downloads" autocomplete="off"><button type="button" class="btn icon-btn" data-pick="src" aria-label="Quellordner wählen" title="Quellordner wählen"><span aria-hidden="true">📁</span></button></div>
         </div>
         <div class="field">
           <label for="dst">Ziel (die Bibliothek)</label>
-          <div class="pathpick"><input id="dst" placeholder="z. B. E:\Medien"><button class="btn icon-btn" data-pick="dst" title="Ordner wählen">📁</button></div>
+          <div class="pathpick"><input id="dst" placeholder="z. B. E:\Medien" autocomplete="off"><button type="button" class="btn icon-btn" data-pick="dst" aria-label="Zielordner wählen" title="Zielordner wählen"><span aria-hidden="true">📁</span></button></div>
         </div>
-        <button class="btn primary" id="scan">🐾 Schnüffeln</button>
+        <button type="button" class="btn primary" id="scan"><span aria-hidden="true">🐾 </span><span class="lbl">Schnüffeln</span></button>
       </div>
-      <p class="hint" id="offline-hint" hidden>Ohne TMDB-Key arbeitet der Bär nur mit den Dateinamen. In den <a href="#" data-goto="settings">Einstellungen</a> kannst du einen Key eintragen.</p>
+      <p class="hint" id="offline-hint" hidden>Ohne TMDB-Key arbeitet der Bär nur mit den Dateinamen. In den <a href="#tab-settings" data-goto="settings">Einstellungen</a> kannst du einen Key eintragen.</p>
     </div>
 
     <div class="card" id="results" hidden>
-      <div class="chips" id="summary"></div>
+      <h3 class="sr-only">Vorschau</h3>
+      <div class="toolbar" id="summary" role="group" aria-label="Nach Status filtern"></div>
       <div id="items"></div>
     </div>
     <div class="card empty" id="empty">
-      <div class="big">🍯</div>
+      <div class="big" aria-hidden="true">🍯</div>
       Noch nichts beschnüffelt. Wähle Quelle und Ziel und drück auf „Schnüffeln“.<br>
       Es wird erst etwas verschoben, wenn du die Vorschau bestätigst.
     </div>
   </section>
 
   <!-- Einstellungen -->
-  <section id="tab-settings" hidden>
+  <section id="tab-settings" aria-labelledby="h-settings" hidden>
+    <h2 id="h-settings" class="sr-only" tabindex="-1">Einstellungen</h2>
     <div class="card">
+      <h3 class="label">Online-Datenbank</h3>
       <div class="row">
         <div class="field">
           <label for="key">TMDB API-Key</label>
-          <div class="pathpick"><input id="key" type="password" autocomplete="off" placeholder="API-Key (v3) oder Read Access Token"><button class="btn icon-btn" id="showkey" title="Anzeigen">👁</button></div>
+          <div class="pathpick"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="API-Key (v3) oder Read Access Token" aria-describedby="key-hint"><button type="button" class="btn icon-btn" id="showkey" aria-label="API-Key anzeigen" aria-pressed="false"><span aria-hidden="true">👁</span></button></div>
         </div>
-        <div class="field" style="max-width:220px">
+        <div class="field mid" style="flex-basis:220px">
           <label for="lang">Sprache der Titel</label>
           <select id="lang">
             <option value="de-DE">Deutsch</option>
@@ -252,63 +294,67 @@ dialog::backdrop { background: rgba(59, 38, 22, .35); }
           </select>
         </div>
       </div>
-      <p class="hint">Einen kostenlosen Key gibt es nach der Anmeldung auf <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org</a>.</p>
+      <p class="hint" id="key-hint">Einen kostenlosen Key gibt es nach der Anmeldung auf <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org (öffnet neues Fenster)</a>.</p>
     </div>
 
     <div class="card">
-      <div class="label" style="margin-bottom:8px">Namensvorlagen</div>
+      <h3 class="label">Namensvorlagen</h3>
       <div class="field" style="margin-bottom:12px">
         <label for="tmovie">Filme</label>
-        <input id="tmovie" class="tmpl">
-        <div class="preview" id="pmovie"></div>
+        <input id="tmovie" class="tmpl" spellcheck="false" aria-describedby="pmovie">
+        <div class="preview" id="pmovie" aria-live="polite"></div>
       </div>
       <div class="field" style="margin-bottom:12px">
         <label for="tseries">Serien</label>
-        <input id="tseries" class="tmpl">
-        <div class="preview" id="pseries"></div>
+        <input id="tseries" class="tmpl" spellcheck="false" aria-describedby="pseries">
+        <div class="preview" id="pseries" aria-live="polite"></div>
       </div>
-      <p class="hint">„/“ trennt Ordner. Die Dateiendung hängt der Bär selbst an. Zahlen lassen sich auffüllen, z. B. <code>{season:02}</code> → 01. Leere Platzhalter samt Klammern und Strichen fallen weg. Klick auf einen Platzhalter fügt ihn ein:</p>
-      <div class="ph-list" id="placeholders"></div>
+      <p class="hint" id="ph-hint">„/“ trennt Ordner. Die Dateiendung hängt der Bär selbst an. Zahlen lassen sich auffüllen, z. B. <code>{season:02}</code> ergibt 01. Leere Platzhalter samt Klammern und Strichen fallen weg. Ein Klick auf einen Platzhalter fügt ihn in die zuletzt benutzte Vorlage ein:</p>
+      <div class="ph-list" id="placeholders" role="group" aria-labelledby="ph-hint"></div>
     </div>
 
     <div class="card">
-      <div class="label" style="margin-bottom:8px">Dateiregeln: was passiert mit welchen Dateien?</div>
+      <h3 class="label">Dateiregeln: was passiert mit welchen Dateien?</h3>
       <p class="hint" style="margin-top:0">Videos werden einzeln einsortiert. Begleitdateien (Untertitel, NFO, Bilder …) wandern mit dem Video, zu dem sie gehören, und bekommen dessen neuen Namen.</p>
       <table>
-        <thead><tr><th>Name</th><th>Art</th><th>Endungen</th><th>Aktion</th><th></th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Art</th><th scope="col">Endungen</th><th scope="col">Aktion</th><th scope="col"><span class="sr-only">Entfernen</span></th></tr></thead>
         <tbody id="rules"></tbody>
       </table>
-      <button class="btn small" id="addrule" style="margin-top:8px">+ Regel</button>
+      <button type="button" class="btn small" id="addrule" style="margin-top:8px">+ Regel</button>
       <div class="field" style="margin-top:16px">
         <label for="ignore">Ignorieren (Muster, mit Komma getrennt)</label>
-        <input id="ignore" placeholder="*sample*, *trailer*">
+        <input id="ignore" placeholder="*sample*, *trailer*" spellcheck="false">
       </div>
     </div>
     <div class="row" style="justify-content:end">
       <span class="hint" id="cfgpath"></span>
-      <button class="btn primary" id="save">Speichern</button>
+      <button type="button" class="btn primary" id="save">Speichern</button>
     </div>
   </section>
 
   <!-- Verlauf -->
-  <section id="tab-history" hidden>
+  <section id="tab-history" aria-labelledby="h-history" hidden>
+    <h2 id="h-history" class="sr-only" tabindex="-1">Verlauf</h2>
     <div class="card" id="history"></div>
   </section>
 </main>
 
-<div class="bar" id="bar" hidden>
-  <span class="grow" id="selinfo"></span>
-  <button class="btn small" id="selready">Alle bereiten wählen</button>
-  <button class="btn small" id="selnone">Keine</button>
-  <button class="btn go" id="apply">🐻 Einsortieren</button>
+<div class="bar" id="bar" role="region" aria-label="Auswahl" hidden>
+  <span class="grow" id="selinfo" aria-live="polite"></span>
+  <button type="button" class="btn small" id="selready">Alle bereiten wählen</button>
+  <button type="button" class="btn small" id="selnone">Keine</button>
+  <button type="button" class="btn go" id="apply"><span aria-hidden="true">🐻 </span>Einsortieren</button>
 </div>
 
-<dialog id="picker">
-  <div class="dlg-head" id="pk-path"></div>
-  <div class="dirs" id="pk-dirs"></div>
+<dialog id="picker" aria-labelledby="pk-title" aria-describedby="pk-path">
+  <div class="dlg-head">
+    <h2 id="pk-title">Ordner wählen</h2>
+    <div class="dlg-path" id="pk-path"></div>
+  </div>
+  <div class="dirs" id="pk-dirs" role="group" aria-label="Unterordner"></div>
   <div class="dlg-foot">
-    <button class="btn small" id="pk-cancel">Abbrechen</button>
-    <button class="btn small primary" id="pk-ok">Diesen Ordner nehmen</button>
+    <button type="button" class="btn small" id="pk-cancel">Abbrechen</button>
+    <button type="button" class="btn small primary" id="pk-ok">Diesen Ordner nehmen</button>
   </div>
 </dialog>
 
@@ -316,8 +362,9 @@ dialog::backdrop { background: rgba(59, 38, 22, .35); }
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const deco = e => `<span aria-hidden="true">${e}</span>`;
 
-const state = { cfg: null, items: [], online: false, sel: new Set(), open: null, placeholders: [] };
+const state = { cfg: null, items: [], online: false, sel: new Set(), open: null, filter: null, placeholders: [], busy: false };
 
 async function api(method, path, body) {
   const res = await fetch(path, {
@@ -325,38 +372,39 @@ async function api(method, path, body) {
     headers: { "Content-Type": "application/json", "X-OrganiBear": "1" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (res.status === 403) throw new Error("Zugang abgelaufen. Bitte OrganiBear über den Link im Programmfenster neu öffnen.");
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
 }
 
-// Bär
+// Bär: Stimmung + Sprechblase (die Sprechblase ist eine Live-Region)
 let moodTimer;
 function bear(mood, text, ms) {
   $("#bear").dataset.mood = mood;
-  if (text) $("#say").textContent = text;
+  if (text) {
+    const s = $("#say");
+    s.setAttribute("aria-live", mood === "confused" ? "assertive" : "polite");
+    s.textContent = "";
+    requestAnimationFrame(() => (s.textContent = text));
+  }
   clearTimeout(moodTimer);
   if (ms) moodTimer = setTimeout(() => ($("#bear").dataset.mood = "idle"), ms);
 }
-function toast(msg) {
-  const t = document.createElement("div");
-  t.className = "toast"; t.textContent = msg;
-  document.body.append(t);
-  setTimeout(() => t.remove(), 3000);
-}
 
-// Tabs
-function showTab(name) {
-  $$("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+// Bereiche
+function showTab(name, focusHeading) {
+  $$("nav button").forEach(b => b.dataset.tab === name ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
   $$("main > section").forEach(s => (s.hidden = s.id !== "tab-" + name));
   $("#bar").hidden = name !== "sort" || !state.items.length;
   if (name === "history") loadHistory();
   if (name === "settings") bear("idle", "Hier stellst du ein, wie deine Bibliothek aussehen soll.");
+  if (focusHeading) $("#h-" + name).focus();
 }
 $$("nav button").forEach(b => (b.onclick = () => showTab(b.dataset.tab)));
 document.addEventListener("click", e => {
   const g = e.target.closest("[data-goto]");
-  if (g) { e.preventDefault(); showTab(g.dataset.goto); }
+  if (g) { e.preventDefault(); showTab(g.dataset.goto, true); }
 });
 
 // Konfiguration
@@ -388,14 +436,17 @@ async function loadConfig() {
 
 function renderRules(rules) {
   const opt = (map, v) => Object.entries(map).map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("");
-  $("#rules").innerHTML = rules.map(r => `
+  $("#rules").innerHTML = rules.map((r, i) => {
+    const n = esc(r.name || "Regel " + (i + 1));
+    return `
     <tr>
-      <td><input class="r-name" value="${esc(r.name)}"></td>
-      <td><select class="r-kind">${opt(KIND, r.kind)}</select></td>
-      <td><input class="r-ext" value="${esc((r.extensions || []).join(", "))}"></td>
-      <td><select class="r-action">${opt(ACTION, r.action)}</select></td>
-      <td><button class="btn small r-del" title="Entfernen">✕</button></td>
-    </tr>`).join("");
+      <td><input class="r-name" aria-label="Name der Regel ${i + 1}" value="${esc(r.name)}"></td>
+      <td><select class="r-kind" aria-label="Art (${n})">${opt(KIND, r.kind)}</select></td>
+      <td><input class="r-ext" aria-label="Endungen (${n})" spellcheck="false" value="${esc((r.extensions || []).join(", "))}"></td>
+      <td><select class="r-action" aria-label="Aktion (${n})">${opt(ACTION, r.action)}</select></td>
+      <td><button type="button" class="btn small r-del" aria-label="Regel „${n}“ entfernen">${deco("✕")}</button></td>
+    </tr>`;
+  }).join("");
 }
 function readRules() {
   return $$("#rules tr").map(tr => ({
@@ -405,9 +456,23 @@ function readRules() {
     action: $(".r-action", tr).value,
   }));
 }
-$("#rules").addEventListener("click", e => { if (e.target.closest(".r-del")) e.target.closest("tr").remove(); });
-$("#addrule").onclick = () => renderRules([...readRules(), { name: "Neue Regel", kind: "companion", extensions: [], action: "copy" }]);
-$("#showkey").onclick = () => ($("#key").type = $("#key").type === "password" ? "text" : "password");
+$("#rules").addEventListener("click", e => {
+  const del = e.target.closest(".r-del");
+  if (!del) return;
+  const tr = del.closest("tr");
+  const next = tr.nextElementSibling || tr.previousElementSibling;
+  tr.remove();
+  ((next && $("input", next)) || $("#addrule")).focus();
+});
+$("#addrule").onclick = () => {
+  renderRules([...readRules(), { name: "Neue Regel", kind: "companion", extensions: [], action: "copy" }]);
+  $("#rules tr:last-child input").select();
+};
+$("#showkey").onclick = e => {
+  const k = $("#key"), show = k.type === "password";
+  k.type = show ? "text" : "password";
+  e.currentTarget.setAttribute("aria-pressed", show);
+};
 
 let lastTmpl = null;
 $$(".tmpl").forEach(i => { i.addEventListener("focus", () => (lastTmpl = i)); i.addEventListener("input", preview); });
@@ -427,11 +492,12 @@ function preview() {
   previewTimer = setTimeout(async () => {
     const r = await api("POST", "/api/template-preview", { movie_template: $("#tmovie").value, series_template: $("#tseries").value });
     for (const k of ["movie", "series"]) {
-      const el = $("#p" + k);
-      el.classList.toggle("err", !!r[k + "_error"]);
-      el.textContent = r[k + "_error"] || r[k];
+      const el = $("#p" + k), err = r[k + "_error"];
+      el.classList.toggle("err", !!err);
+      el.textContent = err ? "Fehler: " + err : "Beispiel: " + r[k];
+      $(k === "movie" ? "#tmovie" : "#tseries").setAttribute("aria-invalid", !!err);
     }
-  }, 150);
+  }, 250);
 }
 
 $("#save").onclick = async () => {
@@ -453,16 +519,21 @@ $("#save").onclick = async () => {
     bear("happy", "Gespeichert! Ich merk mir das.", 1800);
     if (state.items.length) await refreshItems();
   } catch (e) {
-    bear("confused", e.message, 3000);
+    bear("confused", "Nicht gespeichert: " + e.message, 3000);
   }
 };
 
 // Sortieren
 $("#scan").onclick = async () => {
+  if (state.busy) return;
+  state.busy = true;
+  const btn = $("#scan");
+  btn.setAttribute("aria-disabled", "true");
+  $(".lbl", btn).textContent = "Schnüffelt …";
   bear("sniff", "Schnüffel, schnüffel … ich schaue mir alles an.");
-  $("#scan").disabled = true;
   try {
     const r = await api("POST", "/api/scan", { source_dir: $("#src").value.trim(), target_dir: $("#dst").value.trim() });
+    state.filter = null;
     setItems(r, true);
     const n = state.items.length;
     const todo = state.items.filter(i => i.status === "unmatched" || i.status === "conflict").length;
@@ -472,7 +543,9 @@ $("#scan").onclick = async () => {
   } catch (e) {
     bear("confused", e.message, 4000);
   } finally {
-    $("#scan").disabled = false;
+    state.busy = false;
+    btn.removeAttribute("aria-disabled");
+    $(".lbl", btn).textContent = "Schnüffeln";
   }
 };
 
@@ -482,86 +555,117 @@ function setItems(r, fresh) {
   state.items = r.items || [];
   state.online = r.online;
   $("#offline-hint").hidden = r.online;
-  const ids = new Set(state.items.map(i => i.id));
   if (fresh) {
     state.sel = new Set(state.items.filter(i => i.status === "ready" || i.status === "offline").map(i => i.id));
     state.open = null;
   }
   for (const id of state.sel) {
-    const it = state.items.find(i => i.id === id);
-    if (!ids.has(id) || !selectable(it)) state.sel.delete(id);
+    if (!selectable(state.items.find(i => i.id === id))) state.sel.delete(id);
   }
   render();
 }
 
 const selectable = it => it && ["ready", "offline", "unmatched"].includes(it.status) && it.info.title;
 
-function render() {
+function updateCounts() {
+  $("#selinfo").textContent = `${state.sel.size} von ${state.items.length} ausgewählt`;
+  $("#apply").disabled = !state.sel.size;
+}
+
+// Merkt sich, welches Element im Eintrag den Fokus hatte, und stellt ihn nach dem Neuzeichnen wieder her.
+function focusKey() {
+  const a = document.activeElement, row = a?.closest?.(".item");
+  if (!row) return null;
+  const cls = [...a.classList].find(c => /^(sel|tog|search|manual|q|qy|qs|m-\w+)$/.test(c));
+  return { id: row.dataset.id, sel: a.dataset.cand ? `[data-cand="${a.dataset.cand}"]` : cls ? "." + cls : null };
+}
+function restoreFocus(k) {
+  if (!k) return;
+  const row = $(`.item[data-id="${k.id}"]`);
+  const t = row && k.sel ? $(k.sel, row) : null;
+  const target = t && !t.disabled ? t : row?.querySelector("button, input:not(:disabled)");
+  (target || $("#results")).focus();
+}
+
+function render(focus) {
+  const fk = focus === undefined ? focusKey() : focus;
   const items = state.items;
   $("#results").hidden = !items.length;
   $("#empty").hidden = !!items.length;
   $("#bar").hidden = !items.length || $("#tab-sort").hidden;
   const counts = {};
   items.forEach(i => (counts[i.status] = (counts[i.status] || 0) + 1));
-  $("#summary").innerHTML = Object.entries(counts).map(([s, n]) => `<span class="chip s-${s}">${n} × ${STATUS[s]}</span>`).join("");
-  $("#items").innerHTML = items.map(itemHTML).join("");
-  $("#selinfo").textContent = `${state.sel.size} von ${items.length} ausgewählt`;
-  $("#apply").disabled = !state.sel.size;
+  if (state.filter && !counts[state.filter]) state.filter = null;
+  $("#summary").innerHTML = (Object.keys(counts).length > 1 ? `<button type="button" class="chip s-neutral" data-filter="" aria-pressed="${!state.filter}">Alle ${items.length}</button>` : "") +
+    Object.entries(counts).map(([s, n]) => `<button type="button" class="chip s-${s}" data-filter="${s}" aria-pressed="${state.filter === s}">${n} × ${STATUS[s]}</button>`).join("");
+  const shown = state.filter ? items.filter(i => i.status === state.filter) : items;
+  $("#items").innerHTML = shown.map(itemHTML).join("");
+  updateCounts();
+  restoreFocus(fk);
 }
+
+$("#summary").addEventListener("click", e => {
+  const b = e.target.closest("[data-filter]");
+  if (!b) return;
+  state.filter = b.dataset.filter || null;
+  render(null);
+  $(`#summary [data-filter="${b.dataset.filter}"]`)?.focus();
+});
 
 function itemHTML(it) {
   const info = it.info;
   const cand = it.candidates?.find(c => c.id === info.tmdb_id);
-  const poster = cand?.poster ? `<img class="poster" src="${esc(cand.poster)}" alt="">` : `<div class="poster">${info.series ? "📺" : "🎬"}</div>`;
-  const comps = it.companions?.length ? `<span class="tag s-done">+${it.companions.length} Begleitdatei${it.companions.length > 1 ? "en" : ""}</span>` : "";
-  const action = it.action === "copy" ? `<span class="tag s-offline">kopieren</span>` : "";
+  const poster = cand?.poster ? `<img class="poster" src="${esc(cand.poster)}" alt="">` : `<div class="poster" aria-hidden="true">${info.series ? "📺" : "🎬"}</div>`;
+  const n = it.companions?.length || 0;
+  const comps = n ? `<span class="tag s-neutral">+${n} Begleitdatei${n > 1 ? "en" : ""}</span>` : "";
+  const action = it.action === "copy" ? `<span class="tag s-offline">wird kopiert</span>` : "";
   const locked = it.status === "done" || it.status === "same";
+  const open = state.open === it.id && !locked;
   return `
   <div class="item" data-id="${it.id}">
-    <input type="checkbox" class="sel" ${state.sel.has(it.id) ? "checked" : ""} ${selectable(it) ? "" : "disabled"}>
+    <input type="checkbox" class="sel" aria-labelledby="new-${it.id}" aria-describedby="old-${it.id} st-${it.id}" ${state.sel.has(it.id) ? "checked" : ""} ${selectable(it) ? "" : "disabled"}>
     ${poster}
     <div class="paths">
-      <div class="old">${esc(it.rel_source)}</div>
-      <div class="new">${esc(it.rel_target || "?")}</div>
-      <div class="meta">
+      <div class="old" id="old-${it.id}"><span class="sr-only">Bisher: </span>${esc(it.rel_source)}</div>
+      <div class="new" id="new-${it.id}"><span class="arrow" aria-hidden="true">→ </span><span class="sr-only">Neu: </span>${esc(it.rel_target || "?")}</div>
+      <div class="meta" id="st-${it.id}">
         <span class="tag s-${it.status}">${STATUS[it.status]}</span>
-        <span class="tag s-done">${info.series ? "Serie" : "Film"}</span>
+        <span class="tag s-neutral">${info.series ? "Serie" : "Film"}</span>
         ${comps}${action}
-        ${it.message ? `<span class="hint">${esc(it.message)}</span>` : ""}
+        ${it.message ? `<span class="msg">${esc(it.message)}</span>` : ""}
       </div>
     </div>
-    <div class="side">${locked ? "" : `<button class="btn small tog">${state.open === it.id ? "Schließen" : "Anpassen"}</button>`}</div>
-    ${state.open === it.id && !locked ? editHTML(it) : ""}
+    <div class="side">${locked ? "" : `<button type="button" class="btn small tog" aria-expanded="${open}" aria-controls="edit-${it.id}">${open ? "Schließen" : "Anpassen"}</button>`}</div>
+    ${open ? editHTML(it) : ""}
   </div>`;
 }
 
 function editHTML(it) {
-  const i = it.info;
+  const i = it.info, id = it.id;
   const cands = (it.candidates || []).map(c => `
-    <button class="cand ${c.id === i.tmdb_id ? "on" : ""}" data-cand="${c.id}" title="${esc(c.overview)}">
-      ${c.poster ? `<img src="${esc(c.poster)}" alt="">` : `<div class="ph">🐻</div>`}
-      <b>${esc(c.title)}</b><small>${c.year || "–"}</small>
+    <button type="button" class="cand" data-cand="${c.id}" aria-pressed="${c.id === i.tmdb_id}" title="${esc(c.overview)}">
+      ${c.poster ? `<img src="${esc(c.poster)}" alt="">` : `<div class="ph" aria-hidden="true">🐻</div>`}
+      <b>${esc(c.title)}</b><small>${c.year || "ohne Jahr"}</small>
     </button>`).join("");
+  const f = (cls, label, value, extra = "", size = "") =>
+    `<div class="field ${size}"><label for="${cls}-${id}">${label}</label><input id="${cls}-${id}" class="${cls}" value="${esc(value)}" ${extra}></div>`;
   return `
-  <div class="edit">
-    ${cands ? `<div class="label">Treffer: welcher ist es?</div><div class="cands">${cands}</div>` : ""}
+  <div class="edit" id="edit-${id}" role="group" aria-label="Eintrag anpassen">
+    ${cands ? `<h3 class="label">Treffer: welcher ist es?</h3><div class="cands">${cands}</div>` : ""}
     ${state.online ? `
-    <div class="label">Selbst suchen</div>
-    <div class="row" style="margin:4px 0 12px">
-      <div class="field"><input class="q" value="${esc(it.parsed.title)}" placeholder="Titel"></div>
-      <div class="field" style="max-width:100px;min-width:80px"><input class="qy" value="${it.parsed.year || ""}" placeholder="Jahr" inputmode="numeric"></div>
-      <div class="field" style="max-width:130px;min-width:110px"><select class="qs"><option value="0" ${i.series ? "" : "selected"}>Film</option><option value="1" ${i.series ? "selected" : ""}>Serie</option></select></div>
-      <button class="btn small primary search">Suchen</button>
+    <h3 class="label">Selbst suchen</h3>
+    <div class="row" style="margin:0 0 14px">
+      ${f("q", "Suchbegriff", it.parsed.title)}
+      ${f("qy", "Jahr", it.parsed.year || "", 'inputmode="numeric"', "narrow")}
+      <div class="field mid"><label for="qs-${id}">Art</label><select id="qs-${id}" class="qs"><option value="0" ${i.series ? "" : "selected"}>Film</option><option value="1" ${i.series ? "selected" : ""}>Serie</option></select></div>
+      <button type="button" class="btn small primary search">Suchen</button>
     </div>` : ""}
-    <div class="label">Oder von Hand</div>
-    <div class="row" style="margin-top:4px">
-      <div class="field"><input class="m-title" value="${esc(i.title)}" placeholder="Titel"></div>
-      <div class="field" style="max-width:90px;min-width:80px"><input class="m-year" value="${i.year || ""}" placeholder="Jahr" inputmode="numeric"></div>
-      ${i.series ? `
-      <div class="field" style="max-width:80px;min-width:70px"><input class="m-season" value="${i.season || ""}" placeholder="Staffel" inputmode="numeric"></div>
-      <div class="field" style="max-width:80px;min-width:70px"><input class="m-episode" value="${i.episode || ""}" placeholder="Folge" inputmode="numeric"></div>
-      <div class="field"><input class="m-eptitle" value="${esc(i.episode_title)}" placeholder="Folgentitel"></div>` : ""}
-      <button class="btn small manual">Übernehmen</button>
+    <h3 class="label">Oder von Hand</h3>
+    <div class="row">
+      ${f("m-title", "Titel", i.title)}
+      ${f("m-year", "Jahr", i.year || "", 'inputmode="numeric"', "narrow")}
+      ${i.series ? f("m-season", "Staffel", i.season || "", 'inputmode="numeric"', "narrow") + f("m-episode", "Folge", i.episode || "", 'inputmode="numeric"', "narrow") + f("m-eptitle", "Folgentitel", i.episode_title) : ""}
+      <button type="button" class="btn small manual">Übernehmen</button>
     </div>
   </div>`;
 }
@@ -570,7 +674,7 @@ $("#items").addEventListener("change", e => {
   if (!e.target.classList.contains("sel")) return;
   const id = +e.target.closest(".item").dataset.id;
   e.target.checked ? state.sel.add(id) : state.sel.delete(id);
-  render();
+  updateCounts(); // kein Neuzeichnen, damit der Fokus bleibt
 });
 $("#items").addEventListener("click", async e => {
   const row = e.target.closest(".item");
@@ -578,20 +682,30 @@ $("#items").addEventListener("click", async e => {
   const id = +row.dataset.id;
   const it = state.items.find(i => i.id === id);
   const num = s => parseInt($(s, row)?.value, 10) || 0;
+  if (e.target.closest(".tog")) {
+    const opening = state.open !== id;
+    state.open = opening ? id : null;
+    render(null);
+    const r = $(`.item[data-id="${id}"]`);
+    (opening ? $(".edit button, .edit input", r) : $(".tog", r))?.focus();
+    return;
+  }
   let body;
-  if (e.target.closest(".tog")) { state.open = state.open === id ? null : id; return render(); }
   const cand = e.target.closest("[data-cand]");
   if (cand) body = { candidate_id: +cand.dataset.cand };
   if (e.target.closest(".search")) body = { query: $(".q", row).value.trim(), year: num(".qy"), series: $(".qs", row).value === "1" };
   if (e.target.closest(".manual")) body = { info: { ...it.info, title: $(".m-title", row).value.trim(), year: num(".m-year"), season: it.info.series ? num(".m-season") : 0, episode: it.info.series ? num(".m-episode") : 0, episode_end: 0, episode_title: it.info.series ? $(".m-eptitle", row).value.trim() : "", tmdb_id: 0 } };
   if (!body) return;
+  const fk = focusKey();
   try {
     bear("sniff", "Moment …");
-    setItems(await api("POST", "/api/items/" + id, body), false);
+    const r = await api("POST", "/api/items/" + id, body);
+    state.items = r.items || [];
     const now = state.items.find(i => i.id === id);
     if (selectable(now)) state.sel.add(id);
-    render();
-    bear("happy", "So passt das.", 1500);
+    setItems(r, false);
+    restoreFocus(fk);
+    bear("happy", `Neues Ziel: ${now?.rel_target || "?"}`, 1500);
   } catch (err) {
     bear("confused", err.message, 3000);
   }
@@ -601,6 +715,7 @@ $("#selready").onclick = () => { state.items.filter(i => i.status === "ready" ||
 $("#selnone").onclick = () => { state.sel.clear(); render(); };
 $("#apply").onclick = async () => {
   const chosen = state.items.filter(i => state.sel.has(i.id));
+  if (!chosen.length) return;
   const copies = chosen.filter(i => i.action === "copy").length;
   const msg = `${chosen.length} Videos (plus Begleitdateien) werden ${copies === chosen.length ? "kopiert" : copies ? "verschoben bzw. kopiert" : "verschoben"}.\nÜber den Verlauf lässt sich das rückgängig machen.\n\nLos geht's?`;
   if (!confirm(msg)) return;
@@ -609,9 +724,11 @@ $("#apply").onclick = async () => {
     const r = await api("POST", "/api/apply", { ids: [...state.sel] });
     state.sel.clear();
     setItems(r, false);
+    $("#results").setAttribute("tabindex", "-1");
+    $("#results").focus();
     const errs = state.items.filter(i => i.status === "error").length;
-    if (errs) bear("confused", `Fertig, aber ${errs} Datei(en) hatten Probleme. Details stehen daneben.`, 5000);
-    else bear("happy", `Fertig! ${r.ops} Dateien sind jetzt ordentlich einsortiert. 🍯`, 3000);
+    if (errs) bear("confused", `Fertig, aber ${errs} Datei(en) hatten Probleme. Details stehen beim jeweiligen Eintrag.`, 5000);
+    else bear("happy", `Fertig! ${r.ops} Dateien sind jetzt ordentlich einsortiert.`, 3000);
   } catch (e) {
     bear("confused", e.message, 4000);
   }
@@ -623,22 +740,23 @@ async function loadHistory() {
   $("#history").innerHTML = list.length ? list.map(h => `
     <div class="hist">
       <div>
-        <b>${new Date(h.created).toLocaleString("de-DE")}</b> · ${h.ops} Datei${h.ops === 1 ? "" : "en"}
-        ${h.undone ? `<span class="tag s-done">rückgängig gemacht</span>` : ""}
-        <ul>${(h.sample || []).map(o => `<li>${ACTION[o.action]}: ${esc(o.target)}</li>`).join("")}${h.ops > 5 ? "<li>…</li>" : ""}</ul>
+        <h3>${new Date(h.created).toLocaleString("de-DE")}</h3> · ${h.ops} Datei${h.ops === 1 ? "" : "en"}
+        ${h.undone ? `<span class="tag s-neutral">rückgängig gemacht</span>` : ""}
+        <ul>${(h.sample || []).map(o => `<li>${ACTION[o.action]}: ${esc(o.target)}</li>`).join("")}${h.ops > 5 ? `<li>und ${h.ops - 5} weitere</li>` : ""}</ul>
       </div>
-      <button class="btn small" data-undo="${esc(h.file)}" ${h.undone ? "disabled" : ""}>↩ Rückgängig</button>
-    </div>`).join("") : `<div class="empty"><div class="big">📜</div>Noch nichts einsortiert.</div>`;
+      <button type="button" class="btn small" data-undo="${esc(h.file)}" ${h.undone ? "disabled" : ""}>${deco("↩ ")}Rückgängig machen</button>
+    </div>`).join("") : `<div class="empty"><div class="big" aria-hidden="true">📜</div>Noch nichts einsortiert.</div>`;
 }
 $("#history").addEventListener("click", async e => {
   const b = e.target.closest("[data-undo]");
   if (!b || !confirm("Diesen Lauf rückgängig machen? Verschobenes wandert zurück, Kopien werden gelöscht.")) return;
   try {
     const r = await api("POST", "/api/undo", { file: b.dataset.undo });
-    state.items = []; state.sel.clear(); render();
+    state.items = []; state.sel.clear(); render(null);
     if (r.problems?.length) bear("confused", "Nicht alles ging zurück: " + r.problems.join("; "), 6000);
     else bear("happy", "Alles wieder wie vorher.", 2500);
-    loadHistory();
+    await loadHistory();
+    $("#h-history").focus();
   } catch (err) {
     bear("confused", err.message, 4000);
   }
@@ -652,13 +770,15 @@ async function openDir(path) {
     $("#pk-path").textContent = r.path;
     $("#pk-path").dataset.path = r.path;
     $("#pk-dirs").innerHTML =
-      (r.parent ? `<button data-dir="${esc(r.parent)}">⬆️ eine Ebene hoch</button>` : "") +
-      r.dirs.map(d => `<button data-dir="${esc(r.path + (r.path.endsWith(r.sep) ? "" : r.sep) + d)}">📁 ${esc(d)}</button>`).join("");
+      (r.parent ? `<button type="button" data-dir="${esc(r.parent)}">${deco("⬆️")} eine Ebene hoch</button>` : "") +
+      r.dirs.map(d => `<button type="button" data-dir="${esc(r.path + (r.path.endsWith(r.sep) ? "" : r.sep) + d)}">${deco("📁")} ${esc(d)}</button>`).join("") +
+      (r.dirs.length ? "" : `<p class="hint" style="padding:0 10px">Keine Unterordner.</p>`);
+    ($("#pk-dirs button:nth-child(2)") || $("#pk-dirs button") || $("#pk-ok")).focus();
   } catch (e) {
     if (path) openDir("");
   }
 }
-$$("[data-pick]").forEach(b => (b.onclick = () => { pickTarget = $("#" + b.dataset.pick); openDir(pickTarget.value.trim()); $("#picker").showModal(); }));
+$$("[data-pick]").forEach(b => (b.onclick = () => { pickTarget = $("#" + b.dataset.pick); $("#picker").showModal(); openDir(pickTarget.value.trim()); }));
 $("#pk-dirs").addEventListener("click", e => { const b = e.target.closest("[data-dir]"); if (b) openDir(b.dataset.dir); });
 $("#pk-cancel").onclick = () => $("#picker").close();
 $("#pk-ok").onclick = () => { pickTarget.value = $("#pk-path").dataset.path; $("#picker").close(); };
