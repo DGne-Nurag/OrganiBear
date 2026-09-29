@@ -95,9 +95,20 @@ try {
   await page.waitForTimeout(300);
   await tour(2, "header");
 
+  // Höhe erst mit kleinem Fenster messen: Die Seite ist mindestens so hoch wie
+  // das Fenster, mit 3000 px käme sonst eine riesige leere Fläche mit ins Bild.
+  await page.setViewportSize({ width: 1200, height: 600 });
+  await page.waitForTimeout(300);
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
   await page.setViewportSize({ width: 1200, height });
   await page.waitForTimeout(300);
+  // Prüfen: Unter dem letzten Inhalt (Footer) darf kaum Platz bleiben.
+  const gap = await page.evaluate(() => {
+    const els = [...document.querySelectorAll("main > *, footer")].filter(e => e.offsetParent !== null || e.tagName === "FOOTER");
+    const bottom = Math.max(...els.map(e => e.getBoundingClientRect().bottom + window.scrollY));
+    return document.documentElement.scrollHeight - bottom;
+  });
+  if (gap > 120) throw new Error(`Screenshot hätte ${Math.round(gap)} px leere Fläche unter dem Inhalt`);
   await page.screenshot({ path: join(repo, "docs", "screenshot.png") });
 
   await page.setViewportSize({ width: 1200, height: Math.max(height, 3000) });
