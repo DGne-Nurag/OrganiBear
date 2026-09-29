@@ -18,6 +18,9 @@ in eine ordentliche Bibliothek.
 - **Eigene Namensvorlagen** für Filme und Serien, mit Live-Vorschau.
 - **Dateiregeln:** Du legst fest, welche Dateiendungen Videos und welche Begleitdateien sind (Untertitel, NFO, Bilder …) und ob sie verschoben, kopiert oder ignoriert werden. Begleitdateien bekommen den neuen Namen ihres Videos (`Film (2010).de.srt`).
 - **Erst Vorschau, dann Aktion.** Nichts wird bewegt, bevor du bestätigst. Vorhandene Dateien werden nie überschrieben.
+- **Liest die Datei selbst:** Auflösung, Video-Codec, HDR und Tonspuren kommen bei MKV und MP4 direkt aus der Datei,
+  nicht nur aus dem Namen. Liegen zwei Versionen desselben Films vor, schlägt er die bessere vor
+  („2160p HEVC statt 1080p H.264“) und wählt sie gleich aus.
 - **Rückgängig:** Jeder Lauf landet im Verlauf und lässt sich mit einem Klick zurückdrehen.
 - **Fehlende Untertitel** in deinen Sprachen lädt er auf Wunsch von OpenSubtitles.com nach.
 - **Für Plex, Jellyfin und Kodi:** auf Wunsch NFO-Dateien, Poster und Hintergrundbilder dazu, danach liest der Mediaserver seine Bibliothek neu ein.
@@ -102,7 +105,11 @@ samt Klammern und Strichen.
 | `{year}` | Erscheinungsjahr |
 | `{season}`, `{episode}` | Staffel, Folge (Doppelfolgen werden zu `01-E02`) |
 | `{episode_title}` | Folgentitel |
-| `{resolution}` | Auflösung aus dem Dateinamen, z. B. `1080p` |
+| `{resolution}` | Auflösung aus der Datei (sonst aus dem Namen), z. B. `2160p` |
+| `{vcodec}` | Video-Codec aus der Datei, z. B. `HEVC`, `H.264`, `AV1` |
+| `{hdr}` | `DV` (Dolby Vision), `HDR10` oder `HLG`, bei SDR leer |
+| `{audio}` | Haupttonspur, z. B. `TrueHD 7.1` oder `EAC3 5.1` |
+| `{languages}` | Sprachen der Tonspuren, z. B. `DE-EN` |
 | `{tmdb_id}` | TMDB-ID |
 | `{first_letter}` | Anfangsbuchstabe ohne Artikel, z. B. `M` für „The Matrix“ |
 

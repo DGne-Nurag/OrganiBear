@@ -223,3 +223,65 @@ func mustExist(t *testing.T, p string, want bool) {
 		t.Errorf("%s: existiert=%v, erwartet %v", p, !want, want)
 	}
 }
+
+func TestDuplicateSuggestsBetter(t *testing.T) {
+	tmp := t.TempDir()
+	src, dst := filepath.Join(tmp, "in"), filepath.Join(tmp, "out")
+	copyFile := func(from, to string) {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join("testdata", "media", from))
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := filepath.Join(src, filepath.FromSlash(to))
+		if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Der Name behauptet 1080p, die Datei ist aber 720p AV1. Die andere ist 2160p HDR10 HEVC.
+	copyFile("av1.mkv", "Inception.2010.1080p.mkv")
+	copyFile("hevc-hdr10.mkv", "neu/Inception (2010).mkv")
+	cfg := DefaultConfig()
+	cfg.SourceDir, cfg.TargetDir = src, dst
+	cfg.MovieTemplate = "{title} ({year})"
+	items, err := Scan(context.Background(), cfg, NewTMDB("", "de-DE"))
+	if err != nil || len(items) != 2 {
+		t.Fatalf("%v %d", err, len(items))
+	}
+	small, big := items[0], items[1]
+	if small.Info.Resolution != "720p" || big.Info.Resolution != "2160p" || big.Info.VCodec != "HEVC" || big.Info.Audio != "EAC3 5.1" {
+		t.Errorf("Infos aus der Datei: %+v / %+v", small.Info, big.Info)
+	}
+	if big.Status != StatusDuplicate || big.Better != "2160p HDR10 statt 720p SDR" || small.Better != "" {
+		t.Errorf("Vorschlag: %q %q (%s)", big.Better, small.Better, big.Status)
+	}
+	if !strings.Contains(small.Message, "„neu/Inception (2010).mkv“") {
+		t.Errorf("Meldung der schlechteren: %q", small.Message)
+	}
+
+	// Mit den neuen Platzhaltern landen beide auf verschiedenen Zielen.
+	cfg.MovieTemplate = "{title} ({year}) [{resolution} {hdr} {vcodec} {audio} {languages}]"
+	PlanTargets(cfg, items)
+	if small.RelTarget != "Inception (2010) [720p AV1 Opus 2.0].mkv" || big.RelTarget != "Inception (2010) [2160p HDR10 HEVC EAC3 5.1 DE-EN].mkv" {
+		t.Errorf("Ziele: %q / %q", small.RelTarget, big.RelTarget)
+	}
+}
+
+func TestBetterReason(t *testing.T) {
+	a := &Item{Info: MediaInfo{Resolution: "720p"}, Size: 3 << 30}
+	b := &Item{Size: 1 << 30}
+	if got := betterReason(a, b); got != "720p statt unbekannter Auflösung" {
+		t.Error(got)
+	}
+	b.Info.Resolution = "720p"
+	if best, why := suggestBest([]*Item{b, a}); best != a || why != "größere Datei (3,0 GB statt 1,0 GB)" {
+		t.Errorf("%v %q", best == a, why)
+	}
+	b.Size = a.Size - 1
+	if best, _ := suggestBest([]*Item{b, a}); best != nil {
+		t.Error("fast gleich große Dateien sollten keinen Vorschlag bekommen")
+	}
+}
