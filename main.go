@@ -46,6 +46,7 @@ func main() {
 	addr := flag.String("addr", "127.0.0.1:8765", "Adresse für das Webinterface")
 	cfgPath := flag.String("config", defaultCfg, "Pfad zur Konfigurationsdatei")
 	noBrowser := flag.Bool("no-browser", false, "Browser nicht automatisch öffnen")
+	browser := flag.Bool("browser", false, "im Browser statt im eigenen Fenster öffnen")
 	idle := flag.Duration("idle", 5*time.Minute, "beenden, wenn so lange kein Browser-Tab mehr offen ist (0 = nie)")
 	flag.Parse()
 
@@ -64,6 +65,16 @@ func main() {
 	static, _ := fs.Sub(webFiles, "web")
 	srv := NewServer(cfg, *cfgPath, static)
 
+	if windowAvailable && !*browser && !*noBrowser {
+		err := runWindow(srv)
+		if err == nil {
+			fmt.Println("   Gute Nacht! ʕ-ᴥ-ʔ")
+			return
+		}
+		// Ohne Web-Engine (z. B. Linux ohne Bildschirm) geht es im Browser weiter.
+		log.Printf("Eigenes Fenster geht nicht (%v), nehme den Browser.", err)
+	}
+
 	if err := requireLoopback(*addr); err != nil {
 		log.Fatal(err)
 	}
@@ -72,7 +83,7 @@ func main() {
 		log.Fatal(err)
 	}
 	url := srv.LoginURL("http://" + ln.Addr().String())
-	fmt.Printf("   Konfiguration: %s\n   Webinterface:  %s\n   Beenden über den Knopf im Webinterface oder mit Strg+C\n\n", *cfgPath, url)
+	fmt.Printf("   Konfiguration: %s\n   Webinterface:  %s\n   Beenden über den Knopf „Beenden“ oder mit Strg+C\n\n", *cfgPath, url)
 	if !*noBrowser {
 		openBrowser(url)
 	}

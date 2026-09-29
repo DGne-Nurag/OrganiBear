@@ -68,6 +68,30 @@ func (s *Server) Quit() { s.quitOnce.Do(func() { close(s.quit) }) }
 // Done wird geschlossen, sobald jemand Quit aufgerufen hat.
 func (s *Server) Done() <-chan struct{} { return s.quit }
 
+// WaitIdle wartet, bis keine Anfrage mehr läuft (höchstens max).
+func (s *Server) WaitIdle(max time.Duration) {
+	end := time.Now().Add(max)
+	for s.inFlight.Load() > 0 && time.Now().Before(end) {
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// WindowHandler ist die Oberfläche für das eigene Programmfenster. Dessen
+// Anfragen kommen nicht über das Netzwerk, sondern direkt aus der Web-Engine
+// im selben Prozess (Adresse wails://wails bzw. wails.localhost). Sie bekommen
+// deshalb Host und Schlüssel gesetzt und laufen dann durch dieselben Prüfungen.
+func (s *Server) WindowHandler() http.Handler {
+	h := s.Handler()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = r.Clone(r.Context())
+		r.Host = "localhost"
+		r.Header.Del("Cookie")
+		// #nosec G124 -- Cookie nur in der Anfrage, geht nie an einen Browser
+		r.AddCookie(&http.Cookie{Name: cookieName, Value: s.token})
+		h.ServeHTTP(w, r)
+	})
+}
+
 // IdleFor meldet, wie lange der Browser schon nichts mehr von sich hören ließ.
 // Solange noch nie ein Browser da war oder eine Anfrage läuft, ist das 0.
 func (s *Server) IdleFor(now time.Time) time.Duration {
@@ -521,6 +545,11 @@ func (s *Server) dirs(w http.ResponseWriter, r *http.Request) {
 		p, _ = os.UserHomeDir()
 	}
 	p, _ = filepath.Abs(p)
+	// Beim Drag & Drop kann auch eine Datei ankommen: dann gilt ihr Ordner.
+	// #nosec G703 -- der Ordnerdialog darf absichtlich jeden Pfad lesen (nur Namen, nur lokal)
+	if st, err := os.Stat(p); err == nil && !st.IsDir() {
+		p = filepath.Dir(p)
+	}
 	entries, err := os.ReadDir(p)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
