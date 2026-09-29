@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Barrierefreiheits-Tests für das Webinterface (Playwright + axe)",
   "scripts": {
-    "test": "node a11y.mjs"
+    "test": "node a11y.mjs",
+    "screenshot": "node screenshot.mjs"
   },
   "dependencies": {
     "@axe-core/playwright": "4.13.0",
