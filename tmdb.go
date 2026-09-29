@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,6 +68,7 @@ func (t *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 	body, ok := t.cache[u]
 	t.mu.Unlock()
 	if !ok {
+		// #nosec G704 -- Host ist fest (BaseURL), Pfade enthalten nur Zahlen-IDs
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		if err != nil {
 			return err
@@ -75,7 +77,7 @@ func (t *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 		if bearer {
 			req.Header.Set("Authorization", "Bearer "+t.Key)
 		}
-		resp, err := t.HTTP.Do(req)
+		resp, err := t.HTTP.Do(req) // #nosec G704 -- siehe oben
 		if err != nil {
 			// Die URL enthält den API-Key, also nur die eigentliche Ursache melden.
 			var ue *url.Error
@@ -234,6 +236,77 @@ func (t *TMDB) Episode(ctx context.Context, tvID, season, episode int) (Episode,
 	var ep Episode
 	err := t.get(ctx, fmt.Sprintf("/tv/%d/season/%d/episode/%d", tvID, season, episode), nil, &ep)
 	return ep, err
+}
+
+// Season ist eine Staffel einer Serie.
+type Season struct {
+	Number   int    `json:"number"`
+	Name     string `json:"name"`
+	Episodes int    `json:"episodes"`
+}
+
+// Seasons listet die Staffeln einer Serie (Specials als Staffel 0).
+func (t *TMDB) Seasons(ctx context.Context, tvID int) ([]Season, error) {
+	var r struct {
+		Seasons []struct {
+			Number   int    `json:"season_number"`
+			Name     string `json:"name"`
+			Episodes int    `json:"episode_count"`
+		} `json:"seasons"`
+	}
+	if err := t.get(ctx, fmt.Sprintf("/tv/%d", tvID), nil, &r); err != nil {
+		return nil, err
+	}
+	out := make([]Season, 0, len(r.Seasons))
+	for _, s := range r.Seasons {
+		out = append(out, Season(s))
+	}
+	return out, nil
+}
+
+// EpisodeName ist eine Folge in der Staffelliste.
+type EpisodeName struct {
+	Number int    `json:"number"`
+	Name   string `json:"name"`
+}
+
+// SeasonEpisodes listet die Folgen einer Staffel.
+func (t *TMDB) SeasonEpisodes(ctx context.Context, tvID, season int) ([]EpisodeName, error) {
+	var r struct {
+		Episodes []struct {
+			Number int    `json:"episode_number"`
+			Name   string `json:"name"`
+		} `json:"episodes"`
+	}
+	if err := t.get(ctx, fmt.Sprintf("/tv/%d/season/%d", tvID, season), nil, &r); err != nil {
+		return nil, err
+	}
+	out := make([]EpisodeName, 0, len(r.Episodes))
+	for _, e := range r.Episodes {
+		out = append(out, EpisodeName(e))
+	}
+	return out, nil
+}
+
+// absoluteEpisode rechnet eine fortlaufende Folgennummer (Anime) über die
+// Folgenzahl der Staffeln in Staffel und Folge um. Specials zählen nicht mit.
+func absoluteEpisode(seasons []Season, abs int) (season, episode int, ok bool) {
+	if abs <= 0 {
+		return 0, 0, false
+	}
+	sorted := append([]Season(nil), seasons...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Number < sorted[j].Number })
+	n := abs
+	for _, s := range sorted {
+		if s.Number < 1 || s.Episodes <= 0 {
+			continue
+		}
+		if n <= s.Episodes {
+			return s.Number, n, true
+		}
+		n -= s.Episodes
+	}
+	return 0, 0, false
 }
 
 // SeasonPoster liefert den Bildpfad des Staffelposters.

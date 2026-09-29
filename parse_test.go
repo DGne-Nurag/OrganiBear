@@ -34,6 +34,12 @@ func TestParsePath(t *testing.T) {
 		{"Harry.Potter.and.the.Deathly.Hallows.Part.1.2010.1080p.mkv", Parsed{Title: "Harry Potter and the Deathly Hallows Part 1", Year: 2010, Resolution: "1080p"}},
 		{"Lola.rennt.1998.German.DVDRip.XviD-CiA.avi", Parsed{Title: "Lola rennt", Year: 1998}},
 		{"Das.Boot.1981.DVD9.mkv", Parsed{Title: "Das Boot", Year: 1981}},
+		{"One.Piece.E1071.1080p.mkv", Parsed{Title: "One Piece", Series: true, Episode: 1071, Absolute: 1071, Resolution: "1080p"}},
+		{"[SubsPlease] One Piece - 1071 (1080p) [ABCD1234].mkv", Parsed{Title: "One Piece", Series: true, Episode: 1071, Absolute: 1071, Resolution: "1080p"}},
+		{"Naruto Folge 12.mkv", Parsed{Title: "Naruto", Series: true, Episode: 12, Absolute: 12}},
+		{"Dark/Staffel 2/E05.mkv", Parsed{Title: "Dark", Series: true, Season: 2, Episode: 5}},
+		{"Terminator - 2029.mkv", Parsed{Title: "Terminator", Year: 2029}},
+		{"Film.2010.720p.x264-E4.mkv", Parsed{Title: "Film", Year: 2010, Resolution: "720p"}},
 	}
 	for _, tt := range tests {
 		got := ParsePath(filepath.FromSlash(tt.in))

@@ -171,7 +171,7 @@ func infoFromParsed(p Parsed) MediaInfo {
 	return MediaInfo{
 		Title: p.Title, Year: p.Year, Series: p.Series, Season: p.Season,
 		Episode: p.Episode, EpisodeEnd: p.EpisodeEnd, EpisodeTitle: p.EpisodeTitle,
-		Resolution: p.Resolution, Part: p.Part,
+		Resolution: p.Resolution, Part: p.Part, Absolute: p.Absolute,
 	}
 }
 
@@ -210,6 +210,14 @@ func ApplyCandidate(ctx context.Context, db *TMDB, it *Item, c Candidate) {
 	it.Info.Title, it.Info.OriginalTitle, it.Info.Year, it.Info.TMDBID = c.Title, c.OriginalTitle, c.Year, c.ID
 	it.Matched = true
 	it.Message = ""
+	if it.Info.Series && it.Info.Absolute > 0 && it.Info.Season == 0 && db.Enabled() {
+		if seasons, err := db.Seasons(ctx, c.ID); err == nil {
+			if s, e, ok := absoluteEpisode(seasons, it.Info.Absolute); ok {
+				it.Info.Season, it.Info.Episode = s, e
+				it.Message = fmt.Sprintf("Folge %d ist fortlaufend gezählt, laut TMDB ist das Staffel %d, Folge %d. Bitte kurz prüfen.", it.Info.Absolute, s, e)
+			}
+		}
+	}
 	if it.Info.Series && it.Info.Episode > 0 && db.Enabled() {
 		if name, err := db.EpisodeTitle(ctx, c.ID, it.Info.Season, it.Info.Episode); err == nil && name != "" {
 			it.Info.EpisodeTitle = name
@@ -252,6 +260,8 @@ func PlanTargets(cfg Config, items []*Item) {
 		switch {
 		case it.Info.Title == "" || rel == "":
 			it.Status, it.Message = StatusUnmatched, "Kein Titel erkannt"
+		case it.Info.Series && it.Info.Absolute > 0 && it.Info.Season == 0:
+			it.Status, it.Message = StatusUnmatched, fmt.Sprintf("Folge %d ist fortlaufend gezählt. Bitte unter „Anpassen“ Staffel und Folge wählen.", it.Info.Absolute)
 		case it.Info.Series && it.Info.Episode == 0:
 			it.Status, it.Message = StatusUnmatched, "Keine Folgennummer erkannt"
 		case !within(dst, it.Target):
