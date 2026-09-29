@@ -156,7 +156,7 @@ Serien/{title} ({year})/Staffel {season:02}/{title} - S{season:02}E{episode:02} 
 
 ## Selbst bauen
 
-Benötigt [Go](https://go.dev) 1.24 oder neuer.
+Benötigt [Go](https://go.dev) 1.26 oder neuer.
 
 ```sh
 go build -o organibear .              # nur Browser, läuft überall
