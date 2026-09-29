@@ -26,6 +26,14 @@ func TestParsePath(t *testing.T) {
 		{"Stranger Things/Staffel 2/05 - Dig Dug.mkv", Parsed{Title: "Stranger Things", Series: true, Season: 2, Episode: 5}},
 		{"Inception (2010)/inception-hd.mkv", Parsed{Title: "Inception", Year: 2010}},
 		{"Filme/Arrival.2016.1080p/arrival.mkv", Parsed{Title: "Arrival", Year: 2016, Resolution: "1080p"}},
+		{"Titanic.1997.CD1.avi", Parsed{Title: "Titanic", Year: 1997, Part: 1}},
+		{"Titanic (1997) - cd 2.avi", Parsed{Title: "Titanic", Year: 1997, Part: 2}},
+		{"Der.Untergang.2004.German.Teil2.mkv", Parsed{Title: "Der Untergang", Year: 2004, Part: 2}},
+		{"Kill Bill Disc 2.mkv", Parsed{Title: "Kill Bill", Part: 2}},
+		{"Titanic (1997)/pt1.avi", Parsed{Title: "Titanic", Year: 1997, Part: 1}},
+		{"Harry.Potter.and.the.Deathly.Hallows.Part.1.2010.1080p.mkv", Parsed{Title: "Harry Potter and the Deathly Hallows Part 1", Year: 2010, Resolution: "1080p"}},
+		{"Lola.rennt.1998.German.DVDRip.XviD-CiA.avi", Parsed{Title: "Lola rennt", Year: 1998}},
+		{"Das.Boot.1981.DVD9.mkv", Parsed{Title: "Das Boot", Year: 1981}},
 	}
 	for _, tt := range tests {
 		got := ParsePath(filepath.FromSlash(tt.in))
@@ -49,6 +57,9 @@ func TestRenderTemplate(t *testing.T) {
 		{cfg.SeriesTemplate, MediaInfo{Title: "Doctor Who", Year: 2005, Series: true, Season: 2, Episode: 1, EpisodeEnd: 2, EpisodeTitle: "A/B?"}, "Serien/Doctor Who (2005)/Staffel 02/Doctor Who - S02E01-E02 - A-B"},
 		{"{first_letter}/{title} [{resolution}]", MediaInfo{Title: "The Matrix", Resolution: "1080p"}, "M/The Matrix [1080p]"},
 		{"{title}/../../etc/{title}", MediaInfo{Title: ".."}, "etc"},
+		{cfg.MovieTemplate, MediaInfo{Title: "Titanic", Year: 1997, Part: 2}, "Filme/Titanic (1997)/Titanic (1997) - part2"},
+		{"{title} [{part}]", MediaInfo{Title: "Titanic", Part: 1}, "Titanic [part1]"},
+		{"{title} [{part}]", MediaInfo{Title: "Titanic"}, "Titanic"},
 	}
 	for _, tt := range tests {
 		if got := RenderTemplate(tt.tmpl, tt.info); got != filepath.FromSlash(tt.want) {

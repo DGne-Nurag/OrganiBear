@@ -171,7 +171,7 @@ func infoFromParsed(p Parsed) MediaInfo {
 	return MediaInfo{
 		Title: p.Title, Year: p.Year, Series: p.Series, Season: p.Season,
 		Episode: p.Episode, EpisodeEnd: p.EpisodeEnd, EpisodeTitle: p.EpisodeTitle,
-		Resolution: p.Resolution,
+		Resolution: p.Resolution, Part: p.Part,
 	}
 }
 
