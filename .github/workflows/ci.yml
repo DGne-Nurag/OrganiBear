@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 5 * * 1" # jeden Montag: neue Go-Sicherheitslücken finden
+  workflow_dispatch:
 
 jobs:
   test:
@@ -18,6 +21,51 @@ jobs:
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
+
+  # Bekannte Sicherheitslücken in Go und im Code
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          check-latest: true
+          cache: false # keine Abhängigkeiten, also kein go.sum
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+
+  # Statische Analyse (Konfiguration: staticcheck.conf, Ausnahmen per #nosec mit Begründung)
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          check-latest: true
+          cache: false # keine Abhängigkeiten, also kein go.sum
+      - run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
+      - run: go run github.com/securego/gosec/v2/cmd/gosec@v2.29.0 -quiet ./...
+
+  # Barrierefreiheit (WCAG 2.2 AA) des Webinterfaces mit Playwright und axe
+  a11y:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          check-latest: true
+          cache: false # keine Abhängigkeiten, also kein go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npm test
+        working-directory: e2e
 
   build:
     needs: test
