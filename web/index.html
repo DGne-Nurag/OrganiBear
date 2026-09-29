@@ -32,6 +32,7 @@
   --sun-soft: #fff0cc;
   --radius: 18px;
   --shadow: 0 6px 0 rgba(122, 74, 36, .08), 0 12px 30px rgba(122, 74, 36, .08);
+  --frame: #7a4a24; /* Rahmen um Fenster, die über der Seite liegen */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -43,6 +44,7 @@
     --sky: #7fb2e8; --sky-soft: #1f3044;
     --sun-soft: #43361a;
     --shadow: 0 6px 0 rgba(0,0,0,.25);
+    --frame: #f4a73b;
   }
 }
 * { box-sizing: border-box; }
@@ -188,8 +190,9 @@ code { font-family: ui-monospace, Menlo, Consolas, monospace; background: var(--
 .hist h3 { font-size: 15px; margin: 0; display: inline; }
 .hist ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 
-dialog { border: 0; border-radius: var(--radius); padding: 0; width: min(560px, calc(100% - 32px)); background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
-dialog::backdrop { background: rgba(59, 38, 22, .45); }
+dialog { border: 4px solid var(--frame); border-radius: var(--radius); padding: 0; width: min(560px, calc(100% - 32px)); background: var(--card); color: var(--ink); box-shadow: 0 8px 0 rgba(0, 0, 0, .18), 0 24px 60px rgba(0, 0, 0, .45); }
+/* Seite dahinter deutlich abdunkeln und leicht verwischen, damit das Fenster heraussticht */
+dialog::backdrop { background: rgba(31, 20, 11, .7); backdrop-filter: blur(3px); }
 .dlg-head { padding: 16px 18px 4px; }
 .dlg-head h2 { margin: 0 0 4px; font-size: 18px; }
 .dlg-path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
