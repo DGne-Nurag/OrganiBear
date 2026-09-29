@@ -40,7 +40,7 @@ for (const f of files) {
 }
 
 const bin = join(tmp, process.platform === "win32" ? "ob.exe" : "ob");
-execFileSync("go", ["build", "-o", bin, "."], { cwd: repo, stdio: "inherit" });
+execFileSync("go", ["build", "-ldflags", "-X main.openSubtitlesKey=e2e-dummy", "-o", bin, "."], { cwd: repo, stdio: "inherit" });
 const proc = spawn(bin, ["-config", join(tmp, "cfg.json"), "-no-browser", "-addr", "127.0.0.1:0"]);
 
 try {

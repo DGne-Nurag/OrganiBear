@@ -18,10 +18,15 @@ import (
 	"time"
 )
 
-// Fehlende Untertitel von OpenSubtitles.com (REST-API v1). Jeder Nutzer trägt
-// seinen eigenen API-Key ein, optional ein Konto für mehr Downloads pro Tag.
+// Fehlende Untertitel von OpenSubtitles.com (REST-API v1). OpenSubtitles
+// verlangt genau einen API-Key pro Anwendung (openSubtitlesKey); Nutzer dürfen
+// keinen eigenen eintragen. Ohne Konto sind 5 Downloads pro IP und Tag erlaubt,
+// mit kostenlosem Konto 20, mit VIP bis 1000.
 
-var errQuota = errors.New("Tageslimit bei OpenSubtitles erreicht")
+var (
+	errQuota           = errors.New("Tageslimit bei OpenSubtitles erreicht")
+	errUnavailableSubs = errors.New("diese OrganiBear-Version enthält keinen OpenSubtitles-Zugang (nur in den offiziellen Releases)")
+)
 
 // OpenSubs ist ein kleiner Client für api.opensubtitles.com.
 type OpenSubs struct {
@@ -32,15 +37,44 @@ type OpenSubs struct {
 	insecureLinks bool // nur für Tests: Download-Links ohne https erlauben
 
 	mu        sync.Mutex
-	token     string // nach dem Anmelden
-	exhausted bool   // Tageslimit erreicht, für diesen Lauf nichts mehr laden
+	token     string    // nach dem Anmelden
+	exhausted bool      // Tageslimit erreicht, für diesen Lauf nichts mehr laden
+	last      time.Time // letzte Anfrage, OpenSubtitles erlaubt 5 pro Sekunde
+	gap       time.Duration
 }
 
 func NewOpenSubs(s Subtitles) *OpenSubs {
 	return &OpenSubs{
-		Key: s.APIKey, User: s.User, Password: s.Password,
+		Key: openSubtitlesKey, User: s.User, Password: s.Password,
 		BaseURL: "https://api.opensubtitles.com/api/v1",
 		HTTP:    &http.Client{Timeout: 20 * time.Second},
+		gap:     250 * time.Millisecond,
+	}
+}
+
+// userAgent ist der von OpenSubtitles verlangte Name samt Version, z. B.
+// "OrganiBear v0.1.0".
+func userAgent() string {
+	return "OrganiBear v" + strings.TrimPrefix(version, "v")
+}
+
+// wait hält den Abstand zwischen zwei Anfragen ein (Limit: 5 pro Sekunde).
+func (o *OpenSubs) wait(ctx context.Context) error {
+	o.mu.Lock()
+	next := o.last.Add(o.gap)
+	now := time.Now()
+	if next.Before(now) {
+		next = now
+	}
+	o.last = next
+	o.mu.Unlock()
+	t := time.NewTimer(time.Until(next))
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
 	}
 }
 
@@ -57,12 +91,15 @@ func (o *OpenSubs) do(ctx context.Context, method, path string, q url.Values, bo
 		}
 		rd = bytes.NewReader(data)
 	}
+	if err := o.wait(ctx); err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, method, u, rd)
 	if err != nil {
 		return err
 	}
-	// OpenSubtitles verlangt einen eigenen, aussagekräftigen User-Agent.
-	req.Header.Set("User-Agent", "OrganiBear "+version)
+	// OpenSubtitles verlangt einen User-Agent mit App-Name und Version.
+	req.Header.Set("User-Agent", userAgent())
 	req.Header.Set("Api-Key", o.Key)
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
@@ -88,7 +125,10 @@ func (o *OpenSubs) do(ctx context.Context, method, path string, q url.Values, bo
 	}
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
-		return errors.New("OpenSubtitles lehnt API-Key oder Anmeldung ab")
+		if path == "/login" {
+			return errors.New("OpenSubtitles lehnt Benutzer oder Passwort ab")
+		}
+		return errors.New("OpenSubtitles lehnt die Anfrage ab")
 	case resp.StatusCode == http.StatusNotAcceptable:
 		return errQuota
 	case resp.StatusCode == http.StatusTooManyRequests:
@@ -130,7 +170,7 @@ func (o *OpenSubs) Login(ctx context.Context) error {
 	return nil
 }
 
-// Check prüft API-Key und ggf. Konto.
+// Check prüft die Verbindung und ggf. das Konto.
 func (o *OpenSubs) Check(ctx context.Context) error {
 	if o.User != "" {
 		return o.Login(ctx)
@@ -233,7 +273,7 @@ func (o *OpenSubs) Download(ctx context.Context, fileID int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "OrganiBear "+version)
+	req.Header.Set("User-Agent", userAgent())
 	resp, err := o.HTTP.Do(req)
 	if err != nil {
 		var ue *url.Error
@@ -334,7 +374,7 @@ func hasSubtitle(videoTarget, lang string) bool {
 // "<Video>.<sprache>.srt". Vorhandene Dateien bleiben unangetastet.
 func FetchSubtitles(ctx context.Context, cfg Config, subs *OpenSubs, it *Item) (created, warns []string) {
 	s := cfg.Subtitles
-	if !s.Enabled || subs == nil || s.APIKey == "" {
+	if !s.Enabled || subs == nil || subs.Key == "" {
 		return nil, nil
 	}
 	var missing []string

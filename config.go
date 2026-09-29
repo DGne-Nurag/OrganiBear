@@ -49,11 +49,11 @@ type Config struct {
 }
 
 // Subtitles legt fest, ob und in welchen Sprachen fehlende Untertitel von
-// OpenSubtitles.com geladen werden. Key und Konto trägt jeder selbst ein.
+// OpenSubtitles.com geladen werden. Den API-Key bringt das Programm mit, das
+// Konto trägt jeder selbst ein.
 type Subtitles struct {
 	Enabled   bool     `json:"enabled"`
-	Languages []string `json:"languages"` // z. B. ["de", "en"]
-	APIKey    string   `json:"api_key,omitempty"`
+	Languages []string `json:"languages"`          // z. B. ["de", "en"]
 	User      string   `json:"user,omitempty"`     // optional: mehr Downloads pro Tag
 	Password  string   `json:"password,omitempty"` // optional
 }
@@ -161,10 +161,9 @@ func (c *Config) Validate() error {
 		langs = append(langs, l)
 	}
 	c.Subtitles.Languages = langs
-	c.Subtitles.APIKey = strings.TrimSpace(c.Subtitles.APIKey)
 	c.Subtitles.User = strings.TrimSpace(c.Subtitles.User)
-	if c.Subtitles.Enabled && (len(langs) == 0 || c.Subtitles.APIKey == "") {
-		return errors.New("Untertitel: bitte mindestens eine Sprache und einen OpenSubtitles-API-Key angeben")
+	if c.Subtitles.Enabled && len(langs) == 0 {
+		return errors.New("Untertitel: bitte mindestens eine Sprache angeben")
 	}
 	return nil
 }

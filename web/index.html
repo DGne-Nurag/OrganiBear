@@ -398,20 +398,22 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
 
     <div class="card">
       <h3 class="label">Untertitel von OpenSubtitles</h3>
+      <p class="hint" id="s-missing" hidden>Diese Version enthält keinen OpenSubtitles-Zugang. Die offiziellen Releases auf GitHub bringen ihn mit.</p>
+      <div id="s-form">
       <label class="check"><input type="checkbox" id="s-on" aria-describedby="s-hint"> Fehlende Untertitel beim Einsortieren laden</label>
-      <p class="hint" id="s-hint">Gesucht wird per Datei-Fingerabdruck und TMDB-ID. Liegt schon ein Untertitel in der Sprache neben dem Video, lädt der Bär keinen weiteren. Ohne Konto erlaubt OpenSubtitles nur wenige Downloads pro Tag, mit kostenlosem Konto etwas mehr.</p>
+      <p class="hint" id="s-hint">Gesucht wird per Datei-Fingerabdruck und TMDB-ID. Liegt schon ein Untertitel in der Sprache neben dem Video, lädt der Bär keinen weiteren. Ohne Konto erlaubt OpenSubtitles 5 Downloads pro Tag, mit kostenlosem Konto 20.</p>
       <div class="row">
         <div class="field mid" style="flex-basis:160px"><label for="s-langs">Sprachen</label><input id="s-langs" placeholder="de, en" spellcheck="false" aria-describedby="s-langs-hint"></div>
-        <div class="field"><label for="s-key">API-Key</label><input id="s-key" type="password" spellcheck="false" autocomplete="off" aria-describedby="s-key-hint"></div>
       </div>
       <p class="hint" id="s-langs-hint">Kürzel mit Komma getrennt, z. B. <code>de, en</code> oder <code>pt-br</code>.</p>
       <div class="row">
-        <div class="field"><label for="s-user">Benutzer (optional)</label><input id="s-user" spellcheck="false" autocomplete="off"></div>
+        <div class="field"><label for="s-user">OpenSubtitles-Benutzer (optional)</label><input id="s-user" spellcheck="false" autocomplete="off" aria-describedby="s-account-hint"></div>
         <div class="field"><label for="s-password">Passwort (optional)</label><input id="s-password" type="password" spellcheck="false" autocomplete="off"></div>
         <button type="button" class="btn small" id="s-test">Testen</button>
       </div>
       <p class="hint result" id="s-result" role="status"></p>
-      <p class="hint" id="s-key-hint">Den API-Key bekommst du nach der Anmeldung auf <a href="https://www.opensubtitles.com/consumers" target="_blank" rel="noopener noreferrer">opensubtitles.com (öffnet neues Fenster)</a> unter „API consumers“. Übertragen werden nur Fingerabdruck, Dateigröße und TMDB-ID, keine Dateinamen.</p>
+      <p class="hint" id="s-account-hint">Ein kostenloses Konto legst du auf <a href="https://www.opensubtitles.com" target="_blank" rel="noopener noreferrer">opensubtitles.com (öffnet neues Fenster)</a> an. Übertragen werden nur Fingerabdruck, Dateigröße und TMDB-ID, keine Dateinamen.</p>
+      </div>
     </div>
 
     <div class="row" style="justify-content:end">
@@ -516,6 +518,7 @@ async function loadConfig() {
   const data = await api("GET", "/api/config");
   state.cfg = data.config;
   state.placeholders = data.placeholders;
+  state.subsAvailable = !!data.subtitles_available;
   const c = state.cfg;
   $("#src").value = c.source_dir || "";
   $("#dst").value = c.target_dir || "";
@@ -538,7 +541,8 @@ async function loadConfig() {
   const st = c.subtitles || {};
   $("#s-on").checked = !!st.enabled;
   $("#s-langs").value = (st.languages || []).join(", ");
-  $("#s-key").value = st.api_key || "";
+  $("#s-missing").hidden = !!data.subtitles_available;
+  $("#s-form").hidden = !data.subtitles_available;
   $("#s-user").value = st.user || "";
   $("#s-password").value = st.password || "";
   preview();
@@ -548,7 +552,6 @@ function readSubtitles() {
   return {
     enabled: $("#s-on").checked,
     languages: $("#s-langs").value.split(",").map(s => s.trim()).filter(Boolean),
-    api_key: $("#s-key").value.trim(),
     user: $("#s-user").value.trim(),
     password: $("#s-password").value,
   };
@@ -782,7 +785,7 @@ function itemHTML(it) {
   const extraNames = [x.nfo && "NFO", x.artwork && "Bilder"].filter(Boolean).join(" & ");
   const extras = extraNames && info.tmdb_id && state.online ? `<span class="tag s-neutral">+ ${extraNames}</span>` : "";
   const st = state.cfg?.subtitles || {};
-  const subs = st.enabled && st.languages?.length ? `<span class="tag s-neutral">+ fehlende Untertitel (${esc(st.languages.join(", "))})</span>` : "";
+  const subs = state.subsAvailable && st.enabled && st.languages?.length ? `<span class="tag s-neutral">+ fehlende Untertitel (${esc(st.languages.join(", "))})</span>` : "";
   const locked = it.status === "done" || it.status === "same";
   const open = state.open === it.id && !locked;
   return `

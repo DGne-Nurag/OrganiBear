@@ -27,6 +27,12 @@ var webFiles embed.FS
 
 var version = "dev"
 
+// openSubtitlesKey ist der API-Key der Anwendung OrganiBear bei OpenSubtitles.
+// Er steht nicht im Quelltext, sondern wird beim Release-Build per
+// -ldflags "-X main.openSubtitlesKey=..." aus einem GitHub-Secret eingesetzt.
+// Ohne Key ist die Untertitel-Funktion ausgeblendet.
+var openSubtitlesKey = ""
+
 const banner = `
    ʕ•ᴥ•ʔ  OrganiBear %s
    Der Bär, der deine Filme und Serien aufräumt.

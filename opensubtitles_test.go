@@ -46,11 +46,18 @@ func TestHasSubtitle(t *testing.T) {
 	}
 }
 
+// withAppKey setzt für einen Test den eingebauten API-Key und die Version.
+func withAppKey(t *testing.T, key string) {
+	oldKey, oldVersion := openSubtitlesKey, version
+	openSubtitlesKey, version = key, "v0.1.0"
+	t.Cleanup(func() { openSubtitlesKey, version = oldKey, oldVersion })
+}
+
 // fakeOpenSubs spielt die OpenSubtitles-API nach. quota < 0 heißt: Limit erreicht.
 func fakeOpenSubs(t *testing.T, quota int, seen *[]string) *OpenSubs {
 	var srv *httptest.Server
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/file/") && (r.Header.Get("Api-Key") != "oskey" || !strings.HasPrefix(r.Header.Get("User-Agent"), "OrganiBear ")) {
+		if !strings.HasPrefix(r.URL.Path, "/file/") && (r.Header.Get("Api-Key") != "oskey" || r.Header.Get("User-Agent") != "OrganiBear v0.1.0") {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -94,7 +101,8 @@ func fakeOpenSubs(t *testing.T, quota int, seen *[]string) *OpenSubs {
 		}
 	}))
 	t.Cleanup(srv.Close)
-	o := NewOpenSubs(Subtitles{APIKey: "oskey", User: "baer", Password: "honig"})
+	withAppKey(t, "oskey")
+	o := NewOpenSubs(Subtitles{User: "baer", Password: "honig"})
 	o.BaseURL, o.insecureLinks = srv.URL, true
 	return o
 }
@@ -104,7 +112,7 @@ func TestFetchSubtitles(t *testing.T) {
 	touch(t, dst, "Filme/Matrix (1999)/Matrix (1999).mkv", "Filme/Matrix (1999)/Matrix (1999).de.srt")
 	cfg := DefaultConfig()
 	cfg.TargetDir = dst
-	cfg.Subtitles = Subtitles{Enabled: true, Languages: []string{"de", "en"}, APIKey: "oskey"}
+	cfg.Subtitles = Subtitles{Enabled: true, Languages: []string{"de", "en"}}
 	it := &Item{Info: MediaInfo{Title: "Matrix", Year: 1999, TMDBID: 603}, Target: filepath.Join(dst, "Filme", "Matrix (1999)", "Matrix (1999).mkv")}
 
 	var seen []string
@@ -136,7 +144,7 @@ func TestFetchSubtitlesQuota(t *testing.T) {
 	touch(t, dst, "Matrix.mkv")
 	cfg := DefaultConfig()
 	cfg.TargetDir = dst
-	cfg.Subtitles = Subtitles{Enabled: true, Languages: []string{"en"}, APIKey: "oskey"}
+	cfg.Subtitles = Subtitles{Enabled: true, Languages: []string{"en"}}
 	it := &Item{Info: MediaInfo{Title: "Matrix", TMDBID: 603}, Target: filepath.Join(dst, "Matrix.mkv")}
 	var seen []string
 	subs := fakeOpenSubs(t, -1, &seen)
@@ -157,10 +165,10 @@ func TestFetchSubtitlesQuota(t *testing.T) {
 func TestSubtitleConfig(t *testing.T) {
 	c := DefaultConfig()
 	c.Subtitles.Enabled = true
+	c.Subtitles.Languages = nil
 	if c.Validate() == nil {
-		t.Error("ohne API-Key akzeptiert")
+		t.Error("ohne Sprache akzeptiert")
 	}
-	c.Subtitles.APIKey = "k"
 	c.Subtitles.Languages = []string{" DE ", "pt-BR", ""}
 	if err := c.Validate(); err != nil || strings.Join(c.Subtitles.Languages, ",") != "de,pt-br" {
 		t.Errorf("%v %v", err, c.Subtitles.Languages)
@@ -168,5 +176,28 @@ func TestSubtitleConfig(t *testing.T) {
 	c.Subtitles.Languages = []string{"deutsch"}
 	if c.Validate() == nil {
 		t.Error("ungültiges Sprachkürzel akzeptiert")
+	}
+}
+
+func TestSubtitlesWithoutAppKey(t *testing.T) {
+	withAppKey(t, "")
+	dst := t.TempDir()
+	touch(t, dst, "Matrix.mkv")
+	cfg := DefaultConfig()
+	cfg.TargetDir = dst
+	cfg.Subtitles = Subtitles{Enabled: true, Languages: []string{"en"}}
+	it := &Item{Info: MediaInfo{Title: "Matrix", TMDBID: 603}, Target: filepath.Join(dst, "Matrix.mkv")}
+	if created, warns := FetchSubtitles(context.Background(), cfg, NewOpenSubs(cfg.Subtitles), it); created != nil || warns != nil {
+		t.Errorf("ohne eingebauten Key: %v %v", created, warns)
+	}
+}
+
+func TestUserAgent(t *testing.T) {
+	withAppKey(t, "k")
+	for v, want := range map[string]string{"v0.1.0": "OrganiBear v0.1.0", "0.2.0": "OrganiBear v0.2.0", "dev": "OrganiBear vdev"} {
+		version = v
+		if got := userAgent(); got != want {
+			t.Errorf("%s: %q", v, got)
+		}
 	}
 }

@@ -184,7 +184,8 @@ func readJSON(r *http.Request, v any) error {
 func (s *Server) getConfig(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	writeJSON(w, map[string]any{"config": s.cfg, "path": s.cfgPath, "placeholders": Placeholders})
+	writeJSON(w, map[string]any{"config": s.cfg, "path": s.cfgPath, "placeholders": Placeholders,
+		"subtitles_available": openSubtitlesKey != ""})
 }
 
 func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
@@ -379,25 +380,25 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 		"warnings": j.Warnings, "refreshed": refreshed})
 }
 
-// testSubtitles prüft API-Key und ggf. Konto bei OpenSubtitles (auch ungespeichert).
+// testSubtitles prüft die Verbindung und ggf. das Konto bei OpenSubtitles (auch ungespeichert).
 func (s *Server) testSubtitles(w http.ResponseWriter, r *http.Request) {
 	var sub Subtitles
 	if err := readJSON(r, &sub); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	sub.APIKey, sub.User = strings.TrimSpace(sub.APIKey), strings.TrimSpace(sub.User)
-	if sub.APIKey == "" {
-		writeErr(w, http.StatusBadRequest, errors.New("bitte einen OpenSubtitles-API-Key eintragen"))
+	sub.User = strings.TrimSpace(sub.User)
+	if openSubtitlesKey == "" {
+		writeErr(w, http.StatusBadRequest, errUnavailableSubs)
 		return
 	}
 	if err := NewOpenSubs(sub).Check(r.Context()); err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	msg := "API-Key passt."
+	msg := "OpenSubtitles ist erreichbar. Ohne Konto sind 5 Downloads pro Tag möglich."
 	if sub.User != "" {
-		msg = "API-Key und Anmeldung passen."
+		msg = "Anmeldung passt."
 	}
 	writeJSON(w, map[string]string{"message": msg})
 }
