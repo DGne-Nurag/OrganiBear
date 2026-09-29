@@ -181,6 +181,38 @@ async function run() {
       await context.close();
     }
 
+    // Programmfenster: Wails stellt window.runtime bereit. Hier nachgebaut, um
+    // Drag & Drop auf Quelle und Ziel und das Öffnen externer Links zu prüfen.
+    console.log("\nProgrammfenster (Drag & Drop)");
+    {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      await context.addInitScript(() => {
+        window.runtime = { OnFileDrop: cb => (window.__drop = cb), BrowserOpenURL: u => (window.__opened = u) };
+      });
+      const page = await context.newPage();
+      page.on("pageerror", e => fail("JavaScript-Fehler: " + e.message));
+      await page.goto(url);
+      await page.waitForFunction(() => window.__drop);
+      const dropOn = async (sel, path, want) => {
+        const b = await page.locator(sel).boundingBox();
+        await page.evaluate(([x, y, p]) => window.__drop(x, y, [p]), [b.x + 10, b.y + 10, path]);
+        await page.waitForFunction(([s, w]) => document.querySelector(s).value === w, [sel, want], { timeout: 5000 })
+          .catch(() => fail(`${sel}: erwartet ${want}`));
+      };
+      const dir = makeFixtures();
+      await dropOn("#src", dir, dir);
+      ok("Ordner auf Quelle gezogen");
+      // Eine Datei zählt als ihr Ordner.
+      await dropOn("#dst", join(dir, files[0]), dirname(join(dir, files[0])));
+      ok("Datei auf Ziel gezogen, ihr Ordner übernommen");
+      await page.evaluate(p => window.__drop(1, 1, [p]), tmp);
+      (await page.inputValue("#src")) === dir ? ok("Ablegen außerhalb der Felder ändert nichts") : fail("Ablegen außerhalb hat ein Feld geändert");
+      await page.click('footer p a[href="https://thetvdb.com"]');
+      (await page.evaluate(() => window.__opened)) === "https://thetvdb.com/" ? ok("Externer Link öffnet im normalen Browser") : fail("Externer Link bleibt im Programmfenster");
+      await axe(page, "Programmfenster");
+      await context.close();
+    }
+
     // Zum Schluss: Beenden-Knopf. Danach muss sich das Programm selbst beenden.
     console.log("\nBeenden");
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });

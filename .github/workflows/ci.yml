@@ -20,10 +20,10 @@ jobs:
         with:
           go-version: stable
           check-latest: true
-          cache: false # keine Abhängigkeiten, also kein go.sum
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
+      - run: scripts/notices.sh > /dev/null # jede Bibliothek hat eine Lizenzdatei
 
   # Bekannte Sicherheitslücken in Go und im Code
   vulncheck:
@@ -34,8 +34,11 @@ jobs:
         with:
           go-version: stable
           check-latest: true
-          cache: false # keine Abhängigkeiten, also kein go.sum
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      # Fenster-Build (Wails) mitprüfen; Windows braucht kein cgo
+      - run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          GOOS=windows "$(go env GOPATH)/bin/govulncheck" -tags desktop,production ./...
 
   # Statische Analyse (Konfiguration: staticcheck.conf, Ausnahmen per #nosec mit Begründung)
   lint:
@@ -46,7 +49,6 @@ jobs:
         with:
           go-version: stable
           check-latest: true
-          cache: false # keine Abhängigkeiten, also kein go.sum
       - run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
       - run: go run github.com/securego/gosec/v2/cmd/gosec@v2.29.0 -quiet ./...
 
@@ -59,7 +61,6 @@ jobs:
         with:
           go-version: stable
           check-latest: true
-          cache: false # keine Abhängigkeiten, also kein go.sum
       - uses: actions/setup-node@v7
         with:
           node-version: lts/*
@@ -72,27 +73,35 @@ jobs:
 
   build:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
-          - { goos: windows, goarch: amd64, ext: .exe }
-          - { goos: darwin, goarch: arm64, ext: "" }
-          - { goos: darwin, goarch: amd64, ext: "" }
-          - { goos: linux, goarch: amd64, ext: "" }
+          - { goos: windows, goarch: amd64, kind: desktop, runner: ubuntu-latest, name: windows-amd64.exe }
+          - { goos: darwin, goarch: arm64, kind: desktop, runner: macos-latest, name: macos-arm64 }
+          - { goos: darwin, goarch: amd64, kind: desktop, runner: macos-latest, name: macos-amd64 }
+          - { goos: linux, goarch: amd64, kind: desktop, runner: ubuntu-latest, name: linux-amd64-desktop }
+          - { goos: linux, goarch: arm64, kind: desktop, runner: ubuntu-24.04-arm, name: linux-arm64-desktop }
+          # Ohne Fenster: läuft auch ohne GTK/WebKit (Server, NAS, Raspberry Pi)
+          - { goos: linux, goarch: amd64, kind: browser, runner: ubuntu-latest, name: linux-amd64 }
+          - { goos: linux, goarch: arm64, kind: browser, runner: ubuntu-latest, name: linux-arm64 }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: stable
           check-latest: true
-          cache: false # keine Abhängigkeiten, also kein go.sum
-      - run: go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_SHA::7}" -o dist/organibear-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
+      - name: GTK und WebKit für das Linux-Fenster
+        if: matrix.goos == 'linux' && matrix.kind == 'desktop'
+        run: sudo apt-get update -q && sudo apt-get install -yq libgtk-3-dev libwebkit2gtk-4.1-dev
+      - run: scripts/build.sh "dist/organibear-${NAME}"
         env:
+          VERSION: ${{ github.sha }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: "0"
+          KIND: ${{ matrix.kind }}
+          NAME: ${{ matrix.name }}
       - uses: actions/upload-artifact@v7
         with:
-          name: organibear-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: organibear-${{ matrix.name }}
           path: dist/*

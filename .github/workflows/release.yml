@@ -20,43 +20,54 @@ jobs:
         with:
           go-version: stable
           check-latest: true
-          cache: false # keine Abhängigkeiten, also kein go.sum
       - run: go vet ./...
       - run: go test ./...
+      # Lizenztexte der eingebauten Bibliotheken (MIT/BSD/Apache verlangen sie bei Binärweitergabe)
+      - run: mkdir -p dist && scripts/notices.sh > dist/THIRD_PARTY_NOTICES.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: notices
+          path: dist/THIRD_PARTY_NOTICES.txt
 
   build:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
-          - { goos: windows, goarch: amd64, ext: .exe }
-          - { goos: darwin, goarch: arm64, ext: "" }
-          - { goos: darwin, goarch: amd64, ext: "" }
-          - { goos: linux, goarch: amd64, ext: "" }
-          - { goos: linux, goarch: arm64, ext: "" } # Raspberry Pi, viele NAS
+          - { goos: windows, goarch: amd64, kind: desktop, runner: ubuntu-latest, name: windows-amd64.exe }
+          - { goos: darwin, goarch: arm64, kind: desktop, runner: macos-latest, name: macos-arm64 }
+          - { goos: darwin, goarch: amd64, kind: desktop, runner: macos-latest, name: macos-amd64 }
+          - { goos: linux, goarch: amd64, kind: desktop, runner: ubuntu-latest, name: linux-amd64-desktop }
+          - { goos: linux, goarch: arm64, kind: desktop, runner: ubuntu-24.04-arm, name: linux-arm64-desktop }
+          # Ohne Fenster: läuft auch ohne GTK/WebKit (Server, NAS, Raspberry Pi)
+          - { goos: linux, goarch: amd64, kind: browser, runner: ubuntu-latest, name: linux-amd64 }
+          - { goos: linux, goarch: arm64, kind: browser, runner: ubuntu-latest, name: linux-arm64 }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: stable
           check-latest: true
-          cache: false
+      - name: GTK und WebKit für das Linux-Fenster
+        if: matrix.goos == 'linux' && matrix.kind == 'desktop'
+        run: sudo apt-get update -q && sudo apt-get install -yq libgtk-3-dev libwebkit2gtk-4.1-dev
       # Die App-Keys (OpenSubtitles, TheTVDB) kommen aus Secrets und stehen nie im Repo.
       - run: |
           if [ -z "$OS_KEY" ]; then echo "::warning::Secret OPENSUBTITLES_API_KEY fehlt, das Release kann keine Untertitel laden"; fi
           if [ -z "$TVDB_KEY" ]; then echo "::warning::Secret THETVDB_API_KEY fehlt, das Release kann TheTVDB nicht nutzen"; fi
-          go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME} -X main.openSubtitlesKey=${OS_KEY} -X main.tvdbKey=${TVDB_KEY}" -o "dist/organibear-${GITHUB_REF_NAME}-${GOOS}-${GOARCH}${EXT}" .
+          scripts/build.sh "dist/organibear-${GITHUB_REF_NAME}-${NAME}"
         env:
           OS_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
           TVDB_KEY: ${{ secrets.THETVDB_API_KEY }}
+          VERSION: ${{ github.ref_name }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          EXT: ${{ matrix.ext }}
-          CGO_ENABLED: "0"
+          KIND: ${{ matrix.kind }}
+          NAME: ${{ matrix.name }}
       - uses: actions/upload-artifact@v7
         with:
-          name: organibear-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: organibear-${{ matrix.name }}
           path: dist/*
 
   release:
@@ -71,7 +82,7 @@ jobs:
           merge-multiple: true
       - name: Prüfsummen
         working-directory: dist
-        run: sha256sum organibear-* > SHA256SUMS && cat SHA256SUMS
+        run: sha256sum organibear-* THIRD_PARTY_NOTICES.txt > SHA256SUMS && cat SHA256SUMS
       - name: Release anlegen
         env:
           GH_TOKEN: ${{ github.token }}

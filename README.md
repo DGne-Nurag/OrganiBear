@@ -12,7 +12,8 @@ in eine ordentliche Bibliothek.
 
 ## Was er kann
 
-- **Ein einziges Programm.** Starten, der Browser öffnet sich, fertig. Keine Installation, keine Abhängigkeiten.
+- **Ein einziges Programm.** Starten, das Fenster geht auf, fertig. Keine Installation.
+- **Ordner einfach hineinziehen:** Quelle und Ziel per Drag & Drop aus dem Explorer, Finder oder Dateimanager.
 - **Versteht viele Namensmuster:** `S01E02`, `1x02`, `Staffel 1 Folge 2`, Doppelfolgen (`S02E01E02`), Release-Gruppen, Qualitätsangaben, Jahreszahlen im Titel (`Blade Runner 2049 (2017)`), Ordnernamen wie `Serie/Staffel 2/05.mkv`, mehrteilige Filme (`Titanic.1997.CD1.avi` wird zu `Titanic (1997) - part1.avi`) und fortlaufende Folgennummern wie bei Anime (`One.Piece.E1071.mkv` wird über TMDB in Staffel und Folge umgerechnet).
 - **Metadaten von TMDB:** richtiger Titel in deiner Sprache, Jahr und Folgentitel. Bei Unsicherheit wählst du aus den Treffern, suchst selbst oder trägst die Daten von Hand ein. Bei Serien wählst du Staffel und Folge aus der TMDB-Liste, der Folgentitel kommt dann mit. Ohne API-Key arbeitet er nur mit den Dateinamen.
 - **IMDb- und TMDB-IDs:** Steht eine ID im Namen (`Matrix (1999) {imdb-tt0133093}`, `[tmdbid=603]`) oder in einer vorhandenen NFO, nimmt er genau diesen Titel. Im Suchfeld unter „Anpassen“ geht auch eine IMDb-ID wie `tt0133093`.
@@ -32,7 +33,14 @@ in eine ordentliche Bibliothek.
 1. Programm für dein System unter [Releases](https://github.com/DGne-Nurag/OrganiBear/releases) laden
    (oder selbst bauen, siehe unten). Unter macOS und Linux vorher `chmod +x` ausführen; macOS
    fragt beim ersten Start nach, weil das Programm nicht signiert ist (Rechtsklick › Öffnen).
-2. Starten. Das Webinterface öffnet sich im Browser. Der Link steht auch im Programmfenster.
+   - Windows: `organibear-…-windows-amd64.exe`. Das Fenster nutzt die in Windows 10 und 11 eingebaute
+     WebView2 (Microsoft Edge), die dort normalerweise schon installiert ist.
+   - macOS: `organibear-…-macos-arm64` (Apple Silicon) oder `-macos-amd64` (Intel), ab macOS 11.
+   - Linux mit Desktop: `organibear-…-linux-amd64-desktop` bzw. `-arm64-desktop`. Braucht GTK 3 und
+     WebKitGTK 4.1 (Debian/Ubuntu: `sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0`, meist schon da).
+   - Linux ohne Desktop (Server, NAS, Raspberry Pi): `organibear-…-linux-amd64` bzw. `-arm64`, nur mit Browser.
+2. Starten. OrganiBear öffnet sein eigenes Fenster. Klappt das nicht (oder bei den Linux-Versionen ohne
+   Desktop), öffnet sich die Oberfläche stattdessen im Browser; der Link steht dann auch im Terminal.
 3. Unter **Einstellungen** den TMDB-Key eintragen (kostenlos unter
    [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)), Vorlagen und Dateiregeln anpassen.
 4. Unter **Sortieren** Quelle und Ziel wählen, **Schnüffeln** drücken, Vorschau prüfen, **Einsortieren**.
@@ -40,11 +48,15 @@ in eine ordentliche Bibliothek.
 ### Optionen
 
 ```
-organibear [-addr 127.0.0.1:8765] [-config pfad/organibear.json] [-no-browser] [-idle 5m]
+organibear [-browser] [-addr 127.0.0.1:8765] [-config pfad/organibear.json] [-no-browser] [-idle 5m]
 ```
 
-**Beenden:** über den Knopf „Beenden“ oben rechts im Webinterface, mit Strg+C im Programmfenster
-oder einfach Tab schließen: Ist 5 Minuten lang kein Tab mehr offen, legt sich der Bär von selbst schlafen
+`-browser` öffnet die Oberfläche im Browser statt im eigenen Fenster, `-no-browser` startet nur den Server
+(die Adresse steht im Terminal). Drag & Drop von Ordnern geht nur im eigenen Fenster, weil Browser Webseiten
+den Pfad eines abgelegten Ordners nicht verraten; dort bleibt der 📁-Knopf.
+
+**Beenden:** Fenster schließen oder den Knopf „Beenden“ oben rechts. Im Browser-Modus geht auch Strg+C im
+Terminal oder einfach Tab schließen: Ist 5 Minuten lang kein Tab mehr offen, legt sich der Bär von selbst schlafen
 (`-idle 0` schaltet das ab). In allen drei Fällen wird ein laufendes Einsortieren vorher noch fertig;
 ein zweites Strg+C bricht sofort ab.
 
@@ -144,13 +156,17 @@ Serien/{title} ({year})/Staffel {season:02}/{title} - S{season:02}E{episode:02} 
 
 ## Selbst bauen
 
-Benötigt [Go](https://go.dev) 1.24 oder neuer.
+Benötigt [Go](https://go.dev) 1.26 oder neuer.
 
 ```sh
-go build -o organibear .
-# für Windows:
-GOOS=windows GOARCH=amd64 go build -o organibear.exe .
+go build -o organibear .              # nur Browser, läuft überall
+scripts/build.sh organibear           # dasselbe über das Build-Skript
+GOOS=windows GOARCH=amd64 KIND=desktop scripts/build.sh organibear.exe   # mit Fenster
 ```
+
+Mit eigenem Fenster (`KIND=desktop`, Bibliothek [Wails](https://wails.io)): Windows lässt sich von überall bauen.
+macOS und Linux brauchen cgo und müssen auf dem Zielsystem gebaut werden, Linux zusätzlich
+`libgtk-3-dev` und `libwebkit2gtk-4.1-dev`.
 
 Tests: `go test ./...`
 
@@ -183,7 +199,8 @@ Die kostenlose TMDB-API ist nur für nicht-kommerzielle Nutzung gedacht; jeder N
 ## Release veröffentlichen
 
 Ein Tag startet den Release-Workflow. Er testet, baut Windows, macOS (Intel und Apple Silicon)
-und Linux (amd64 und arm64) und legt ein GitHub-Release mit den Programmen und `SHA256SUMS` an.
+und Linux (amd64 und arm64, jeweils mit Fenster und ohne) und legt ein GitHub-Release mit den Programmen,
+`THIRD_PARTY_NOTICES.txt` (Lizenzen der eingebauten Bibliotheken) und `SHA256SUMS` an.
 Die Version steht danach im Startbanner. Tags mit Bindestrich (`v0.2.0-rc1`) werden als Vorabversion markiert.
 
 ```sh
@@ -200,3 +217,5 @@ Nach dem ersten Release bittet OpenSubtitles darum, die App mit ihrem User-Agent
 ## Lizenz
 
 OrganiBear steht unter der [MIT-Lizenz](LICENSE). Das TMDB-Logo (`web/tmdb.svg`) ist eine Marke von TMDB, das TheTVDB-Logo (`web/thetvdb.png`) eine Marke von TheTVDB.com; beide fallen nicht unter die MIT-Lizenz.
+
+Das Programmfenster nutzt [Wails](https://github.com/wailsapp/wails) (MIT) und weitere Go-Bibliotheken unter MIT-, BSD- und Apache-2.0-Lizenz. Ihre Lizenztexte liegen jedem Release als `THIRD_PARTY_NOTICES.txt` bei (`scripts/notices.sh`).

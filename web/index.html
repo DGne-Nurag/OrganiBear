@@ -205,6 +205,8 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
 .about .tvdb { display: inline-block; margin: 6px 0 2px; padding: 4px 8px; border-radius: 8px; background: #26221f; }
 .about .tvdb img { display: block; height: 22px; width: auto; }
 [hidden] { display: none !important; }
+/* Drag & Drop im Programmfenster: das Feld unter dem Ordner leuchtet auf. */
+.pathpick.wails-drop-target-active input { border-color: var(--go); box-shadow: 0 0 0 3px var(--go); background: var(--card); }
 @media (max-width: 640px) {
   html { scroll-padding-bottom: 160px; }
   .item { grid-template-columns: 26px 1fr; }
@@ -1098,6 +1100,45 @@ $("#quit").onclick = async () => {
   try { await api("POST", "/api/quit"); } catch { /* schon weg, auch gut */ }
   goodbye("Gute Nacht! Du kannst diesen Tab jetzt schließen.");
 };
+
+// Im eigenen Programmfenster (Wails) kommen beim Drag & Drop die echten Pfade an.
+// Im Browser geht das nicht: Browser verraten nur den Ordnernamen.
+const inApp = !!window.runtime?.OnFileDrop;
+if (inApp) {
+  $$(".pathpick").forEach(p => {
+    p.style.setProperty("--wails-drop-target", "drop");
+    $("input", p).placeholder = "Ordner hierher ziehen oder 📁 wählen";
+  });
+  window.runtime.OnFileDrop(async (x, y, paths) => {
+    const pick = document.elementFromPoint(x, y)?.closest(".pathpick");
+    if (!pick || !paths?.length) return;
+    const input = $("input", pick);
+    try {
+      // Eine Datei zählt als ihr Ordner, das prüft der Server.
+      const r = await api("GET", "/api/dirs?path=" + encodeURIComponent(paths[0]));
+      input.value = r.path;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.focus();
+      bear("happy", input.id === "src" ? "Quelle übernommen." : "Ziel übernommen.", 2000);
+    } catch (e) {
+      bear("confused", e.message, 4000);
+    }
+  }, true);
+  // Links nach draußen öffnen im normalen Browser, nicht im Programmfenster.
+  document.addEventListener("click", e => {
+    const a = e.target.closest('a[target="_blank"]');
+    if (!a) return;
+    e.preventDefault();
+    window.runtime.BrowserOpenURL(a.href);
+  });
+} else {
+  // Im Browser würde ein abgelegter Ordner die Seite verlassen, darum abfangen und erklären.
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => {
+    e.preventDefault();
+    bear("confused", "Im Browser kann ich abgelegte Ordner nicht lesen. Im Programmfenster geht das, oder nimm 📁.", 5000);
+  });
+}
 
 loadConfig().then(refreshItems).catch(e => bear("confused", e.message));
 </script>
