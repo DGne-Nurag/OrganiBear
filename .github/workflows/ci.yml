@@ -94,9 +94,8 @@ jobs:
       - name: GTK und WebKit für das Linux-Fenster
         if: matrix.goos == 'linux' && matrix.kind == 'desktop'
         run: sudo apt-get update -q && sudo apt-get install -yq libgtk-3-dev libwebkit2gtk-4.1-dev
-      - run: scripts/build.sh "dist/organibear-${NAME}"
+      - run: VERSION="${GITHUB_SHA::7}" scripts/build.sh "dist/organibear-${NAME}"
         env:
-          VERSION: ${{ github.sha }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           KIND: ${{ matrix.kind }}
