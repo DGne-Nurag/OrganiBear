@@ -396,6 +396,24 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
       <p class="hint">Den Plex-Token findest du über „XML anzeigen“ bei einem Eintrag in Plex (Parameter <code>X-Plex-Token</code>), den Jellyfin-Schlüssel unter Dashboard › API-Schlüssel. Bei Kodi muss „Steuerung über HTTP erlauben“ an sein.</p>
     </div>
 
+    <div class="card">
+      <h3 class="label">Untertitel von OpenSubtitles</h3>
+      <label class="check"><input type="checkbox" id="s-on" aria-describedby="s-hint"> Fehlende Untertitel beim Einsortieren laden</label>
+      <p class="hint" id="s-hint">Gesucht wird per Datei-Fingerabdruck und TMDB-ID. Liegt schon ein Untertitel in der Sprache neben dem Video, lädt der Bär keinen weiteren. Ohne Konto erlaubt OpenSubtitles nur wenige Downloads pro Tag, mit kostenlosem Konto etwas mehr.</p>
+      <div class="row">
+        <div class="field mid" style="flex-basis:160px"><label for="s-langs">Sprachen</label><input id="s-langs" placeholder="de, en" spellcheck="false" aria-describedby="s-langs-hint"></div>
+        <div class="field"><label for="s-key">API-Key</label><input id="s-key" type="password" spellcheck="false" autocomplete="off" aria-describedby="s-key-hint"></div>
+      </div>
+      <p class="hint" id="s-langs-hint">Kürzel mit Komma getrennt, z. B. <code>de, en</code> oder <code>pt-br</code>.</p>
+      <div class="row">
+        <div class="field"><label for="s-user">Benutzer (optional)</label><input id="s-user" spellcheck="false" autocomplete="off"></div>
+        <div class="field"><label for="s-password">Passwort (optional)</label><input id="s-password" type="password" spellcheck="false" autocomplete="off"></div>
+        <button type="button" class="btn small" id="s-test">Testen</button>
+      </div>
+      <p class="hint result" id="s-result" role="status"></p>
+      <p class="hint" id="s-key-hint">Den API-Key bekommst du nach der Anmeldung auf <a href="https://www.opensubtitles.com/consumers" target="_blank" rel="noopener noreferrer">opensubtitles.com (öffnet neues Fenster)</a> unter „API consumers“. Übertragen werden nur Fingerabdruck, Dateigröße und TMDB-ID, keine Dateinamen.</p>
+    </div>
+
     <div class="row" style="justify-content:end">
       <span class="hint" id="cfgpath"></span>
       <button type="button" class="btn primary" id="save">Speichern</button>
@@ -411,6 +429,7 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
     <h2 id="h-about" class="label">Über OrganiBear</h2>
     <a class="tmdb" href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer"><img src="tmdb.svg" alt="The Movie Database (TMDB), öffnet neues Fenster" width="137" height="18"></a>
     <p>Titel, Jahreszahlen, Folgentitel und Poster stammen von The Movie Database (TMDB).</p>
+    <p>Nachgeladene Untertitel stammen von <a href="https://www.opensubtitles.com" target="_blank" rel="noopener noreferrer">OpenSubtitles.com (öffnet neues Fenster)</a>.</p>
     <p lang="en">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
     <p>Dieses Produkt nutzt die TMDB-API, wird aber von TMDB weder unterstützt noch zertifiziert.</p>
   </footer>
@@ -516,8 +535,34 @@ async function loadConfig() {
     const srv = x[k] || {};
     for (const f of ["url", "token", "user", "password"]) if ($(`#${k}-${f}`)) $(`#${k}-${f}`).value = srv[f] || "";
   }
+  const st = c.subtitles || {};
+  $("#s-on").checked = !!st.enabled;
+  $("#s-langs").value = (st.languages || []).join(", ");
+  $("#s-key").value = st.api_key || "";
+  $("#s-user").value = st.user || "";
+  $("#s-password").value = st.password || "";
   preview();
 }
+
+function readSubtitles() {
+  return {
+    enabled: $("#s-on").checked,
+    languages: $("#s-langs").value.split(",").map(s => s.trim()).filter(Boolean),
+    api_key: $("#s-key").value.trim(),
+    user: $("#s-user").value.trim(),
+    password: $("#s-password").value,
+  };
+}
+$("#s-test").onclick = async () => {
+  const out = $("#s-result");
+  out.textContent = "Frage nach …";
+  try {
+    const r = await api("POST", "/api/subtitles/test", readSubtitles());
+    out.textContent = "✓ " + r.message;
+  } catch (e) {
+    out.textContent = "✗ " + e.message;
+  }
+};
 
 const SERVERS = ["plex", "jellyfin", "kodi"];
 function readServer(k) {
@@ -624,6 +669,7 @@ $("#save").onclick = async () => {
     file_rules: readRules(),
     ignore_patterns: $("#ignore").value.split(",").map(s => s.trim()).filter(Boolean),
     extras: readExtras(),
+    subtitles: readSubtitles(),
   };
   try {
     const r = await api("PUT", "/api/config", cfg);
@@ -735,6 +781,8 @@ function itemHTML(it) {
   const x = state.cfg?.extras || {};
   const extraNames = [x.nfo && "NFO", x.artwork && "Bilder"].filter(Boolean).join(" & ");
   const extras = extraNames && info.tmdb_id && state.online ? `<span class="tag s-neutral">+ ${extraNames}</span>` : "";
+  const st = state.cfg?.subtitles || {};
+  const subs = st.enabled && st.languages?.length ? `<span class="tag s-neutral">+ fehlende Untertitel (${esc(st.languages.join(", "))})</span>` : "";
   const locked = it.status === "done" || it.status === "same";
   const open = state.open === it.id && !locked;
   return `
@@ -747,7 +795,7 @@ function itemHTML(it) {
       <div class="meta" id="st-${it.id}">
         <span class="tag s-${it.status}">${STATUS[it.status]}</span>
         <span class="tag s-neutral">${info.series ? "Serie" : "Film"}</span>
-        ${comps}${extras}${action}
+        ${comps}${extras}${subs}${action}
         ${it.message ? `<span class="msg">${esc(it.message)}</span>` : ""}
       </div>
     </div>

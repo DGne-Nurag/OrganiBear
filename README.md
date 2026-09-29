@@ -19,6 +19,7 @@ in eine ordentliche Bibliothek.
 - **Dateiregeln:** Du legst fest, welche Dateiendungen Videos und welche Begleitdateien sind (Untertitel, NFO, Bilder …) und ob sie verschoben, kopiert oder ignoriert werden. Begleitdateien bekommen den neuen Namen ihres Videos (`Film (2010).de.srt`).
 - **Erst Vorschau, dann Aktion.** Nichts wird bewegt, bevor du bestätigst. Vorhandene Dateien werden nie überschrieben.
 - **Rückgängig:** Jeder Lauf landet im Verlauf und lässt sich mit einem Klick zurückdrehen.
+- **Fehlende Untertitel** in deinen Sprachen lädt er auf Wunsch von OpenSubtitles.com nach.
 - **Für Plex, Jellyfin und Kodi:** auf Wunsch NFO-Dateien, Poster und Hintergrundbilder dazu, danach liest der Mediaserver seine Bibliothek neu ein.
 
 ## Loslegen
@@ -61,6 +62,21 @@ Unter **Einstellungen › Mediaserver** lässt sich einschalten, was beim Einsor
 
 Vorhandene Dateien werden nie überschrieben, „Rückgängig“ entfernt die angelegten Dateien wieder.
 Die Zugangsdaten liegen nur in der lokalen Konfigurationsdatei.
+
+## Untertitel
+
+Unter **Einstellungen › Untertitel von OpenSubtitles** lassen sich fehlende Untertitel nachladen. Nach dem
+Einsortieren prüft OrganiBear für jede eingestellte Sprache (Standard: `de, en`), ob schon ein Untertitel neben dem
+Video liegt (auch `ger`, `deu`, `eng` usw. im Namen). Fehlt einer, sucht er per Datei-Fingerabdruck (OpenSubtitles-Hash)
+und TMDB-ID und speichert den besten Treffer als `<Video>.de.srt`. Treffer mit passendem Fingerabdruck und
+menschliche Übersetzungen gehen vor.
+
+- Du brauchst einen eigenen **API-Key** von [opensubtitles.com](https://www.opensubtitles.com/consumers)
+  („API consumers“). Ohne Konto sind nur wenige Downloads pro Tag erlaubt (laut OpenSubtitles 5),
+  mit kostenlosem Konto mehr (20). Ist das Tageslimit erreicht, sagt der Bär Bescheid.
+- Übertragen werden Fingerabdruck, Dateigröße, Sprachen und TMDB-ID, aber keine Dateinamen oder Pfade.
+- Vorhandene Untertitel werden nie überschrieben, „Rückgängig“ entfernt die geladenen wieder.
+- Laut den Nutzungsbedingungen von OpenSubtitles ist eine **kommerzielle Nutzung nicht erlaubt**.
 
 ## Sicherheit und Barrierefreiheit
 

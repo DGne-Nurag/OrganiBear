@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -44,6 +45,17 @@ type Config struct {
 	FileRules      []FileRule `json:"file_rules"`
 	IgnorePatterns []string   `json:"ignore_patterns"`
 	Extras         Extras     `json:"extras"`
+	Subtitles      Subtitles  `json:"subtitles"`
+}
+
+// Subtitles legt fest, ob und in welchen Sprachen fehlende Untertitel von
+// OpenSubtitles.com geladen werden. Key und Konto trägt jeder selbst ein.
+type Subtitles struct {
+	Enabled   bool     `json:"enabled"`
+	Languages []string `json:"languages"` // z. B. ["de", "en"]
+	APIKey    string   `json:"api_key,omitempty"`
+	User      string   `json:"user,omitempty"`     // optional: mehr Downloads pro Tag
+	Password  string   `json:"password,omitempty"` // optional
 }
 
 // Extras legt fest, was OrganiBear für Mediaserver zusätzlich erledigt.
@@ -62,6 +74,8 @@ type MediaServer struct {
 	User     string `json:"user,omitempty"`     // nur Kodi
 	Password string `json:"password,omitempty"` // nur Kodi
 }
+
+var reLang = regexp.MustCompile(`^[a-z]{2}(-[a-z]{2})?$`)
 
 // normalizeServerURL prüft eine Mediaserver-Adresse und entfernt den Schrägstrich am Ende.
 func normalizeServerURL(raw string) (string, error) {
@@ -88,6 +102,7 @@ func DefaultConfig() Config {
 			{Name: "Bilder", Kind: KindCompanion, Extensions: []string{"jpg", "jpeg", "png"}, Action: ActionSkip},
 		},
 		IgnorePatterns: []string{"*sample*", "*trailer*"},
+		Subtitles:      Subtitles{Languages: []string{"de", "en"}},
 	}
 }
 
@@ -133,6 +148,23 @@ func (c *Config) Validate() error {
 		}
 		s.srv.URL = u
 		s.srv.Token = strings.TrimSpace(s.srv.Token)
+	}
+	var langs []string
+	for _, l := range c.Subtitles.Languages {
+		l = strings.ToLower(strings.TrimSpace(l))
+		if l == "" {
+			continue
+		}
+		if !reLang.MatchString(l) {
+			return fmt.Errorf("Untertitel: %q ist kein Sprachkürzel (z. B. de, en, pt-br)", l)
+		}
+		langs = append(langs, l)
+	}
+	c.Subtitles.Languages = langs
+	c.Subtitles.APIKey = strings.TrimSpace(c.Subtitles.APIKey)
+	c.Subtitles.User = strings.TrimSpace(c.Subtitles.User)
+	if c.Subtitles.Enabled && (len(langs) == 0 || c.Subtitles.APIKey == "") {
+		return errors.New("Untertitel: bitte mindestens eine Sprache und einen OpenSubtitles-API-Key angeben")
 	}
 	return nil
 }

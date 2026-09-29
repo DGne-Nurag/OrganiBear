@@ -86,6 +86,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	mux.HandleFunc("POST /api/quit", s.quitHandler)
 	mux.HandleFunc("POST /api/mediaserver/test", s.testMediaServer)
+	mux.HandleFunc("POST /api/subtitles/test", s.testSubtitles)
 	mux.Handle("GET /", http.FileServerFS(s.static))
 	return s.guard(mux)
 }
@@ -347,7 +348,12 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	PlanTargets(s.cfg, s.items) // Ziele frisch prüfen, falls sich auf der Platte etwas getan hat
 	cfg, db := s.cfg, s.db
-	extras := func(it *Item) ([]string, []string) { return WriteExtras(r.Context(), cfg, db, it) }
+	subs := NewOpenSubs(cfg.Subtitles)
+	extras := func(it *Item) ([]string, []string) {
+		created, warns := WriteExtras(r.Context(), cfg, db, it)
+		c2, w2 := FetchSubtitles(r.Context(), cfg, subs, it)
+		return append(created, c2...), append(warns, w2...)
+	}
 	j, path, err := Apply(cfg, s.items, ids, s.journalDir, extras)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
@@ -371,6 +377,29 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 	PlanTargets(s.cfg, s.items)
 	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled(), "ops": len(j.Ops), "done": done, "journal": filepath.Base(path),
 		"warnings": j.Warnings, "refreshed": refreshed})
+}
+
+// testSubtitles prüft API-Key und ggf. Konto bei OpenSubtitles (auch ungespeichert).
+func (s *Server) testSubtitles(w http.ResponseWriter, r *http.Request) {
+	var sub Subtitles
+	if err := readJSON(r, &sub); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	sub.APIKey, sub.User = strings.TrimSpace(sub.APIKey), strings.TrimSpace(sub.User)
+	if sub.APIKey == "" {
+		writeErr(w, http.StatusBadRequest, errors.New("bitte einen OpenSubtitles-API-Key eintragen"))
+		return
+	}
+	if err := NewOpenSubs(sub).Check(r.Context()); err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	msg := "API-Key passt."
+	if sub.User != "" {
+		msg = "API-Key und Anmeldung passen."
+	}
+	writeJSON(w, map[string]string{"message": msg})
 }
 
 // testMediaServer probiert die Zugangsdaten aus dem Formular aus (auch
