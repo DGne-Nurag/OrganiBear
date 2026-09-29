@@ -218,8 +218,8 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"config": s.cfg})
 }
 
-var sampleMovie = MediaInfo{Title: "Der Herr der Ringe: Die Gefährten", OriginalTitle: "The Lord of the Rings: The Fellowship of the Ring", Year: 2001, Resolution: "1080p", TMDBID: 120}
-var sampleEpisode = MediaInfo{Title: "Breaking Bad", Year: 2008, Series: true, Season: 1, Episode: 3, EpisodeTitle: "...und der Leichensack", Resolution: "720p", TMDBID: 1396}
+var sampleMovie = MediaInfo{Title: "Der Herr der Ringe: Die Gefährten", OriginalTitle: "The Lord of the Rings: The Fellowship of the Ring", Year: 2001, Resolution: "2160p", VCodec: "HEVC", HDR: "HDR10", Audio: "TrueHD 7.1", Languages: "DE-EN", TMDBID: 120}
+var sampleEpisode = MediaInfo{Title: "Breaking Bad", Year: 2008, Series: true, Season: 1, Episode: 3, EpisodeTitle: "...und der Leichensack", Resolution: "1080p", VCodec: "H.264", Audio: "EAC3 5.1", Languages: "DE-EN", TMDBID: 1396}
 
 func (s *Server) templatePreview(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -315,6 +315,7 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case req.Info != nil:
 		it.Info = *req.Info
+		applyMedia(&it.Info, it.Media)
 		it.Matched = true
 		it.Message = ""
 	case req.Query != "":

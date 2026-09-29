@@ -718,7 +718,8 @@ function setItems(r, fresh) {
   state.online = r.online;
   $("#offline-hint").hidden = r.online;
   if (fresh) {
-    state.sel = new Set(state.items.filter(i => i.status === "ready" || i.status === "offline").map(i => i.id));
+    // Bei Duplikaten ist die vorgeschlagene bessere Version gleich ausgewählt.
+    state.sel = new Set(state.items.filter(i => i.status === "ready" || i.status === "offline" || i.better).map(i => i.id));
     state.open = null;
   }
   for (const id of state.sel) {
@@ -786,6 +787,9 @@ function itemHTML(it) {
   const extras = extraNames && info.tmdb_id && state.online ? `<span class="tag s-neutral">+ ${extraNames}</span>` : "";
   const st = state.cfg?.subtitles || {};
   const subs = state.subsAvailable && st.enabled && st.languages?.length ? `<span class="tag s-neutral">+ fehlende Untertitel (${esc(st.languages.join(", "))})</span>` : "";
+  const quality = [info.resolution, info.hdr, info.vcodec, info.audio, info.languages].filter(Boolean).join(" · ");
+  const media = it.media && quality ? `<span class="tag s-neutral"><span class="sr-only">Aus der Datei: </span>${esc(quality)}</span>` : "";
+  const better = it.better ? `<span class="tag s-ready">bessere Version</span>` : "";
   const locked = it.status === "done" || it.status === "same";
   const open = state.open === it.id && !locked;
   return `
@@ -798,7 +802,7 @@ function itemHTML(it) {
       <div class="meta" id="st-${it.id}">
         <span class="tag s-${it.status}">${STATUS[it.status]}</span>
         <span class="tag s-neutral">${info.series ? "Serie" : "Film"}</span>
-        ${comps}${extras}${subs}${action}
+        ${better}${media}${comps}${extras}${subs}${action}
         ${it.message ? `<span class="msg">${esc(it.message)}</span>` : ""}
       </div>
     </div>
@@ -889,7 +893,7 @@ $("#items").addEventListener("click", async e => {
   }
 });
 
-$("#selready").onclick = () => { state.items.filter(i => i.status === "ready" || i.status === "offline").forEach(i => state.sel.add(i.id)); render(); };
+$("#selready").onclick = () => { state.items.filter(i => i.status === "ready" || i.status === "offline" || i.better).forEach(i => state.sel.add(i.id)); render(); };
 $("#selnone").onclick = () => { state.sel.clear(); render(); };
 $("#apply").onclick = async () => {
   const chosen = state.items.filter(i => state.sel.has(i.id));

@@ -20,11 +20,15 @@ type MediaInfo struct {
 	EpisodeEnd    int    `json:"episode_end,omitempty"`
 	EpisodeTitle  string `json:"episode_title,omitempty"`
 	Resolution    string `json:"resolution,omitempty"`
+	VCodec        string `json:"vcodec,omitempty"`    // aus der Datei, z. B. HEVC
+	HDR           string `json:"hdr,omitempty"`       // DV, HDR10, HLG
+	Audio         string `json:"audio,omitempty"`     // Haupttonspur, z. B. "TrueHD 7.1"
+	Languages     string `json:"languages,omitempty"` // Tonspur-Sprachen, z. B. "DE-EN"
 	TMDBID        int    `json:"tmdb_id,omitempty"`
 }
 
 // Placeholders listet alle Platzhalter für die Hilfe im Webinterface.
-var Placeholders = []string{"title", "original_title", "year", "season", "episode", "episode_title", "resolution", "tmdb_id", "first_letter"}
+var Placeholders = []string{"title", "original_title", "year", "season", "episode", "episode_title", "resolution", "vcodec", "hdr", "audio", "languages", "tmdb_id", "first_letter"}
 
 var rePlaceholder = regexp.MustCompile(`\{([a-z_]+)(?::(\d+))?\}`)
 
@@ -81,6 +85,14 @@ func RenderTemplate(tmpl string, info MediaInfo) string {
 			return sanitize(info.EpisodeTitle)
 		case "resolution":
 			return sanitize(info.Resolution)
+		case "vcodec":
+			return sanitize(info.VCodec)
+		case "hdr":
+			return sanitize(info.HDR)
+		case "audio":
+			return sanitize(info.Audio)
+		case "languages":
+			return sanitize(info.Languages)
 		case "tmdb_id":
 			return pad(info.TMDBID, width)
 		case "first_letter":
@@ -135,12 +147,16 @@ func sanitize(s string) string {
 var (
 	reEmptyBrackets = regexp.MustCompile(`\(\s*\)|\[\s*\]|\{\s*\}`)
 	reDoubleDash    = regexp.MustCompile(`\s-(\s+-)+\s`)
+	reOpenSpace     = regexp.MustCompile(`([(\[{])\s+`)
+	reCloseSpace    = regexp.MustCompile(`\s+([)\]}])`)
 )
 
 // cleanSegment räumt Reste leerer Platzhalter auf, z. B. "Titel ()" oder "S01E02 - ".
 func cleanSegment(s string) string {
 	s = reEmptyBrackets.ReplaceAllString(s, "")
 	s = reSpaces.ReplaceAllString(s, " ")
+	s = reOpenSpace.ReplaceAllString(s, "$1")
+	s = reCloseSpace.ReplaceAllString(s, "$1")
 	s = reDoubleDash.ReplaceAllString(s, " - ")
 	s = strings.Trim(s, " -_.")
 	return s

@@ -1,6 +1,6 @@
 // Erzeugt docs/screenshot.png für die README.
 //
-// Legt leere Dummy-Dateien in einem neutralen Ordner an, startet OrganiBear,
+// Legt Dummy-Dateien in einem neutralen Ordner an, startet OrganiBear,
 // schnüffelt und fotografiert die Vorschau. Das Fenster wird so hoch gemacht wie
 // die Seite, damit die Auswahlleiste unten sitzt statt mitten in der Liste.
 //
@@ -8,7 +8,7 @@
 //   OB_SHOT_DIR=/media/Filme npm run screenshot   # anderer Ordner im Bild
 
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,9 +24,15 @@ if (existsSync(base) && process.env.OB_SHOT_DIR) {
 const src = join(base, "Downloads");
 const dst = join(base, "Bibliothek");
 
+// Zwei Dateien sind echte Mini-Videos aus testdata/media, damit die Angaben
+// aus der Datei und der Duplikat-Vorschlag im Bild sind.
+const real = {
+  "The.Matrix.1999.2160p.UHD.BluRay.x265-GRP/The.Matrix.1999.2160p.UHD.BluRay.x265-GRP.mkv": "hevc-hdr10.mkv",
+  "The Matrix (1999).mkv": "av1.mkv",
+};
 const files = [
-  "The.Matrix.1999.1080p.BluRay.x264-GRP/The.Matrix.1999.1080p.BluRay.x264-GRP.mkv",
-  "The.Matrix.1999.1080p.BluRay.x264-GRP/Subs/English.srt",
+  ...Object.keys(real),
+  "The.Matrix.1999.2160p.UHD.BluRay.x265-GRP/Subs/English.srt",
   "Breaking.Bad.S01E03.720p.HDTV.x264.mkv",
   "Breaking.Bad.S01E03.720p.HDTV.x264.de.srt",
   "[Grp] Dark - Staffel 1 Folge 4.mkv",
@@ -36,7 +42,7 @@ const files = [
 ];
 for (const f of files) {
   mkdirSync(dirname(join(src, f)), { recursive: true });
-  writeFileSync(join(src, f), "");
+  writeFileSync(join(src, f), real[f] ? readFileSync(join(repo, "testdata", "media", real[f])) : "");
 }
 
 const bin = join(tmp, process.platform === "win32" ? "ob.exe" : "ob");

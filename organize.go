@@ -42,6 +42,9 @@ type Item struct {
 	Source     string      `json:"source"`
 	RelSource  string      `json:"rel_source"`
 	Parsed     Parsed      `json:"parsed"`
+	Media      *Media      `json:"media,omitempty"` // aus der Datei gelesen, nil wenn unbekannt
+	Size       int64       `json:"size"`
+	Better     string      `json:"better,omitempty"` // bei Duplikaten: warum diese Version besser ist
 	Info       MediaInfo   `json:"info"`
 	Candidates []Candidate `json:"candidates"`
 	Matched    bool        `json:"matched"`
@@ -151,6 +154,10 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 		sem <- struct{}{}
 		go func(it *Item) {
 			defer func() { <-sem; wg.Done() }()
+			it.Media = ProbeFile(it.Source)
+			if st, err := os.Stat(it.Source); err == nil {
+				it.Size = st.Size()
+			}
 			Lookup(ctx, db, it, it.Parsed.Title, it.Parsed.Year)
 		}(it)
 	}
@@ -168,9 +175,21 @@ func infoFromParsed(p Parsed) MediaInfo {
 	}
 }
 
+// applyMedia übernimmt, was in der Datei steht. Es hat Vorrang vor dem Dateinamen.
+func applyMedia(i *MediaInfo, m *Media) {
+	if m == nil {
+		return
+	}
+	if r := m.Resolution(); r != "" {
+		i.Resolution = r
+	}
+	i.VCodec, i.HDR, i.Audio, i.Languages = m.VCodec, m.HDR, m.MainAudio().String(), m.Languages()
+}
+
 // Lookup sucht Treffer in der Datenbank und übernimmt den besten.
 func Lookup(ctx context.Context, db *TMDB, it *Item, query string, year int) {
 	it.Info = infoFromParsed(it.Parsed)
+	applyMedia(&it.Info, it.Media)
 	it.Candidates, it.Matched, it.Message = nil, false, ""
 	if !db.Enabled() || strings.TrimSpace(query) == "" {
 		return
@@ -217,7 +236,7 @@ func PlanTargets(cfg Config, items []*Item) {
 		if it.Status == StatusDone {
 			continue
 		}
-		it.Status = ""
+		it.Status, it.Better = "", ""
 		tmpl := cfg.MovieTemplate
 		if it.Info.Series {
 			tmpl = cfg.SeriesTemplate
@@ -268,12 +287,13 @@ func PlanTargets(cfg Config, items []*Item) {
 		}
 	}
 
-	// Mehrere Dateien mit demselben Ziel: als "doppelt" markieren und die
-	// jeweils anderen beim Namen nennen, damit man eine davon wählen kann.
+	// Mehrere Dateien mit demselben Ziel: als "doppelt" markieren, die
+	// jeweils anderen beim Namen nennen und die bessere Version vorschlagen.
 	for _, g := range groups {
 		if len(g) < 2 {
 			continue
 		}
+		best, why := suggestBest(g)
 		for _, it := range g {
 			var others []string
 			for _, o := range g {
@@ -282,7 +302,15 @@ func PlanTargets(cfg Config, items []*Item) {
 				}
 			}
 			it.Status = StatusDuplicate
-			it.Message = "Gleiches Ziel wie " + strings.Join(others, ", ") + ". Wähle eine davon aus."
+			switch {
+			case best == nil:
+				it.Message = "Gleiches Ziel wie " + strings.Join(others, ", ") + ". Wähle eine davon aus."
+			case it == best:
+				it.Better = why
+				it.Message = "Gleiches Ziel wie " + strings.Join(others, ", ") + ". Vorschlag: diese Version, " + why + "."
+			default:
+				it.Message = "Gleiches Ziel wie " + strings.Join(others, ", ") + ". Die bessere Version ist „" + best.RelSource + "“ (" + why + ")."
+			}
 		}
 	}
 }
