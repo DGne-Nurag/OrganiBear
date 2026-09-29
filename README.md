@@ -81,4 +81,12 @@ GOOS=windows GOARCH=amd64 go build -o organibear.exe .
 
 Tests: `go test ./...`
 
-Dieses Produkt nutzt die TMDB API, ist aber nicht von TMDB unterstützt oder zertifiziert.
+## TMDB
+
+<a href="https://www.themoviedb.org"><img src="web/tmdb.svg" alt="The Movie Database (TMDB)" height="16"></a>
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+Dieses Produkt nutzt die TMDB-API, wird aber von TMDB weder unterstützt noch zertifiziert.
+
+Der Hinweis und das Logo stehen auch im Programm unten im Bereich „Über OrganiBear“.
+Die kostenlose TMDB-API ist nur für nicht-kommerzielle Nutzung gedacht; jeder Nutzer trägt seinen eigenen API-Key ein.
