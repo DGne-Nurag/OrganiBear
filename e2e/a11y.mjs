@@ -345,6 +345,39 @@ async function run() {
       await context.close();
     }
 
+    console.log("\nEinzelne Videos");
+    {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const page = await context.newPage();
+      page.on("pageerror", e => fail("JavaScript-Fehler: " + e.message));
+      await page.goto(url);
+      const src = makeFixtures();
+      await page.fill("#src", src);
+      await page.click("#src-pick [data-pickfiles]");
+      await page.waitForSelector("#picker[open] #pk-dirs button");
+      await page.click(`#pk-dirs [data-dir="${src}"]`).catch(() => {});
+      await page.evaluate(d => document.querySelector("#pk-path").dataset.path === d, src);
+      await page.waitForSelector(`#pk-dirs input[data-file="${join(src, files[2])}"]`);
+      await axe(page, "Videos wählen");
+      await page.check(`#pk-dirs input[data-file="${join(src, files[2])}"]`);
+      await page.check(`#pk-dirs input[data-file="${join(src, files[5])}"]`);
+      (await page.textContent("#pk-ok")) === "2 Videos nehmen" ? ok("Knopf nennt die Anzahl") : fail("Knopf: " + (await page.textContent("#pk-ok")));
+      await page.click("#pk-ok");
+      (await page.locator("#files li").count()) === 2 ? ok("Zwei Videos in der Liste") : fail("Liste hat nicht zwei Einträge");
+      (await page.locator("#src").isVisible()) ? fail("Ordnerfeld bleibt sichtbar") : ok("Ordnerfeld ausgeblendet");
+      await axe(page, "Liste einzelner Videos");
+      await page.fill("#dst", join(tmp, "out"));
+      await page.click("#scan");
+      await page.waitForSelector(".item");
+      await page.waitForTimeout(200);
+      (await page.locator(".item").count()) === 2 ? ok("Nur die gewählten Videos in der Vorschau") : fail("Vorschau: " + (await page.locator(".item").count()) + " Einträge");
+      await page.click('[data-unfile="0"]');
+      (await page.locator("#files li").count()) === 1 && (await focused(page)).includes("btn") ? ok("Entfernen, Fokus bleibt in der Liste") : fail("Entfernen klappt nicht");
+      await page.click("#files-clear");
+      (await page.locator("#src").isVisible()) && (await page.inputValue("#src")) === src ? ok("Zurück zum Ordner, der Pfad ist noch da") : fail("Ordnerfeld kommt nicht zurück");
+      await context.close();
+    }
+
     console.log("\nProgrammfenster (Drag & Drop)");
     {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -369,6 +402,12 @@ async function run() {
       ok("Datei auf Ziel gezogen, ihr Ordner übernommen");
       await page.evaluate(p => window.__drop(1, 1, [p]), tmp);
       (await page.inputValue("#src")) === dir ? ok("Ablegen außerhalb der Felder ändert nichts") : fail("Ablegen außerhalb hat ein Feld geändert");
+      // Mehrere Videos auf die Quelle: Sie kommen in die Liste, Untertitel werden aussortiert.
+      const box = await page.locator("#src").boundingBox();
+      await page.evaluate(([x, y, ps]) => window.__drop(x, y, ps), [box.x + 10, box.y + 10, [join(dir, files[2]), join(dir, files[5]), join(dir, files[3])]]);
+      await page.waitForFunction(() => document.querySelectorAll("#files li").length === 2, null, { timeout: 5000 })
+        .then(() => ok("Zwei Videos abgelegt, Untertitel weggelassen"), () => fail("Abgelegte Videos fehlen in der Liste"));
+      await page.click("#files-clear");
       await page.click('footer p a[href="https://thetvdb.com"]');
       (await page.evaluate(() => window.__opened)) === "https://thetvdb.com/" ? ok("Externer Link öffnet im normalen Browser") : fail("Externer Link bleibt im Programmfenster");
       await axe(page, "Programmfenster");

@@ -30,6 +30,8 @@ type Server struct {
 	journalDir string
 	db         *TMDB
 	items      []*Item
+	files      []string // gewählte Einzeldateien des letzten Schnüffelns, sonst nil
+	filesRoot  string   // ihr gemeinsamer Ordner
 	static     fs.FS
 	token      string // Zugangsschlüssel pro Programmstart
 	tmdbBase   string // nur für Tests: andere TMDB-Adresse
@@ -38,6 +40,16 @@ type Server struct {
 	quitOnce sync.Once
 	lastSeen atomic.Int64 // letzte Anfrage des Browsers (UnixNano), 0 = noch nie
 	inFlight atomic.Int64 // laufende Anfragen, z. B. ein langes Einsortieren
+}
+
+// run ist die Konfiguration für die aktuelle Liste: Bei Einzeldateien ist der
+// Quellordner deren gemeinsamer Ordner, nicht der gespeicherte.
+func (s *Server) run() Config {
+	c := s.cfg
+	if s.files != nil {
+		c.Files, c.SourceDir = s.files, s.filesRoot
+	}
+	return c
 }
 
 func NewServer(cfg Config, cfgPath string, static fs.FS) *Server {
@@ -117,6 +129,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/history", s.history)
 	mux.HandleFunc("POST /api/undo", s.undo)
 	mux.HandleFunc("GET /api/dirs", s.dirs)
+	mux.HandleFunc("POST /api/files/check", s.checkFiles)
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	mux.HandleFunc("POST /api/quit", s.quitHandler)
 	mux.HandleFunc("POST /api/mediaserver/test", s.testMediaServer)
@@ -249,7 +262,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		s.db = newDB(cfg)
 	}
 	s.cfg = cfg
-	PlanTargets(s.cfg, s.items)
+	PlanTargets(s.run(), s.items)
 	writeJSON(w, map[string]any{"config": s.cfg})
 }
 
@@ -280,9 +293,10 @@ func (s *Server) templatePreview(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		SourceDir string `json:"source_dir"`
-		TargetDir string `json:"target_dir"`
-		InPlace   *bool  `json:"in_place"`
+		SourceDir string   `json:"source_dir"`
+		TargetDir string   `json:"target_dir"`
+		InPlace   *bool    `json:"in_place"`
+		Files     []string `json:"files"` // statt des Quellordners nur diese Videos
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -300,12 +314,27 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 	if req.InPlace != nil {
 		cfg.InPlace = *req.InPlace
 	}
+	run := cfg
+	var root string
+	if len(req.Files) > 0 {
+		var err error
+		if root, err = FilesRoot(req.Files); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		run.Files, run.SourceDir = req.Files, root
+		cfg.SourceDir = s.cfg.SourceDir // der gemerkte Quellordner bleibt
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
-	items, err := Scan(ctx, cfg, s.db)
+	items, err := Scan(ctx, run, s.db)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
+	}
+	s.files, s.filesRoot = nil, ""
+	if len(req.Files) > 0 {
+		s.files, s.filesRoot = req.Files, root
 	}
 	// Ordner merken
 	if cfg.SourceDir != s.cfg.SourceDir || cfg.TargetDir != s.cfg.TargetDir || cfg.InPlace != s.cfg.InPlace {
@@ -393,7 +422,7 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	PlanTargets(s.cfg, s.items)
+	PlanTargets(s.run(), s.items)
 	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled()})
 }
 
@@ -411,8 +440,8 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	PlanTargets(s.cfg, s.items) // Ziele frisch prüfen, falls sich auf der Platte etwas getan hat
-	cfg, db := s.cfg, s.db
+	cfg, db := s.run(), s.db
+	PlanTargets(cfg, s.items) // Ziele frisch prüfen, falls sich auf der Platte etwas getan hat
 	subs := NewOpenSubs(cfg.Subtitles)
 	extras := func(it *Item) ([]string, []string) {
 		created, warns := WriteExtras(r.Context(), cfg, db, it)
@@ -439,7 +468,7 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 		rest = append(rest, it)
 	}
 	s.items = rest
-	PlanTargets(s.cfg, s.items)
+	PlanTargets(cfg, s.items)
 	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled(), "ops": len(j.Ops), "done": done, "journal": filepath.Base(path),
 		"warnings": j.Warnings, "refreshed": refreshed})
 }
@@ -581,18 +610,78 @@ func (s *Server) dirs(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	dirs := []string{}
+	withFiles := r.URL.Query().Get("files") == "1"
+	s.mu.Lock()
+	cfg := s.cfg
+	s.mu.Unlock()
+	dirs, files := []string{}, []string{}
 	for _, e := range entries {
-		if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+		switch {
+		case strings.HasPrefix(e.Name(), "."):
+		case e.IsDir():
 			dirs = append(dirs, e.Name())
+		case withFiles && e.Type().IsRegular() && isVideo(&cfg, filepath.Join(p, e.Name())):
+			files = append(files, e.Name())
 		}
 	}
-	sort.Slice(dirs, func(i, j int) bool { return strings.ToLower(dirs[i]) < strings.ToLower(dirs[j]) })
+	byName := func(l []string) {
+		sort.Slice(l, func(i, j int) bool { return strings.ToLower(l[i]) < strings.ToLower(l[j]) })
+	}
+	byName(dirs)
+	byName(files)
 	parent := filepath.Dir(p)
 	if parent == p {
 		parent = ""
 	}
-	writeJSON(w, map[string]any{"path": p, "parent": parent, "dirs": dirs, "sep": string(filepath.Separator)})
+	writeJSON(w, map[string]any{"path": p, "parent": parent, "dirs": dirs, "files": files, "sep": string(filepath.Separator)})
+}
+
+func isVideo(cfg *Config, p string) bool {
+	rule := cfg.RuleFor(p)
+	return rule != nil && rule.Kind == KindVideo
+}
+
+// checkFiles sortiert abgelegte Pfade: Videos kommen in die Dateiliste, ein
+// einzelner Ordner wird zur Quelle, alles andere wird mit Grund aussortiert.
+func (s *Server) checkFiles(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Paths []string `json:"paths"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	s.mu.Lock()
+	cfg := s.cfg
+	s.mu.Unlock()
+	type skipped struct {
+		Name string `json:"name"`
+		Why  string `json:"why"`
+	}
+	res := struct {
+		Files   []string  `json:"files"`
+		Dirs    []string  `json:"dirs"`
+		Skipped []skipped `json:"skipped"`
+	}{Files: []string{}, Dirs: []string{}, Skipped: []skipped{}}
+	for _, raw := range req.Paths {
+		p, err := filepath.Abs(raw)
+		if err != nil {
+			continue
+		}
+		name := filepath.Base(p)
+		st, err := os.Stat(p) // #nosec G703 -- nur lokale Pfade, die der Nutzer selbst abgelegt hat
+		switch {
+		case err != nil:
+			res.Skipped = append(res.Skipped, skipped{name, "nicht gefunden"})
+		case st.IsDir():
+			res.Dirs = append(res.Dirs, p)
+		case !isVideo(&cfg, p):
+			res.Skipped = append(res.Skipped, skipped{name, "ist kein Video"})
+		default:
+			res.Files = append(res.Files, p)
+		}
+	}
+	writeJSON(w, res)
 }
 
 // tvSeasons liefert die Staffeln einer Serie für die Auswahl im Anpassen-Feld.
