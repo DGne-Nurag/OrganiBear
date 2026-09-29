@@ -224,6 +224,13 @@ a.linkbtn {
 .guide-msg.bad { color: var(--berry); }
 .guide-msg.good { color: var(--go); }
 @media (max-width: 480px) { .fill { grid-template-columns: 1fr auto; } .fill dt { grid-column: 1 / -1; } }
+/* Einsortieren oder nur umbenennen */
+.mode { border: 0; padding: 0; margin: 0 0 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.mode legend { font-weight: 800; padding: 0; margin-bottom: 8px; }
+.mode-opt { flex: 1 1 260px; display: flex; gap: 10px; align-items: start; padding: 10px 12px; border: 2px solid var(--line); border-radius: 14px; cursor: pointer; }
+.mode-opt input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--go); flex: none; }
+.mode-opt:has(input:checked) { border-color: var(--go); background: var(--bg); }
+.mode-opt .hint { font-weight: 400; }
 [hidden] { display: none !important; }
 /* Drag & Drop im Programmfenster: das Feld unter dem Ordner leuchtet auf. */
 .pathpick.wails-drop-target-active input { border-color: var(--go); box-shadow: 0 0 0 3px var(--go); background: var(--card); }
@@ -304,17 +311,25 @@ a.linkbtn {
   <section id="tab-sort" aria-labelledby="h-sort">
     <h2 id="h-sort" class="sr-only" tabindex="-1">Sortieren</h2>
     <div class="card">
+      <fieldset class="mode">
+        <legend>Was soll der Bär machen?</legend>
+        <label class="mode-opt"><input type="radio" name="mode" value="sort" checked>
+          <span><strong><span aria-hidden="true">📦 </span>Einsortieren</strong><br><span class="hint">Die Dateien kommen ordentlich benannt in einen anderen Ordner, deine Bibliothek.</span></span></label>
+        <label class="mode-opt"><input type="radio" name="mode" value="inplace">
+          <span><strong><span aria-hidden="true">✏️ </span>Nur umbenennen</strong><br><span class="hint">Die Dateien bleiben in ihrem Ordner und bekommen nur schöne Namen und Unterordner.</span></span></label>
+      </fieldset>
       <div class="row">
         <div class="field">
           <label for="src">Quelle (das Durcheinander)</label>
           <div class="pathpick"><input id="src" placeholder="z. B. D:\Downloads" autocomplete="off"><button type="button" class="btn icon-btn" data-pick="src" aria-label="Quellordner wählen" title="Quellordner wählen"><span aria-hidden="true">📁</span></button></div>
         </div>
-        <div class="field">
+        <div class="field" id="dst-field">
           <label for="dst">Ziel (die Bibliothek)</label>
           <div class="pathpick"><input id="dst" placeholder="z. B. E:\Medien" autocomplete="off"><button type="button" class="btn icon-btn" data-pick="dst" aria-label="Zielordner wählen" title="Zielordner wählen"><span aria-hidden="true">📁</span></button></div>
         </div>
         <button type="button" class="btn primary" id="scan"><span aria-hidden="true">🐾 </span><span class="lbl">Schnüffeln</span></button>
       </div>
+      <p class="hint" id="inplace-hint" hidden>Alles bleibt im Quellordner. Darin legt der Bär die Ordner aus deinen Namensvorlagen an, zum Beispiel <code>Filme/Matrix (1999)/</code>. Leere alte Ordner räumt er weg. Mit „Rückgängig“ im Verlauf ist alles wieder wie vorher.</p>
       <p class="hint" id="offline-hint" hidden>Ohne TMDB-Key arbeitet der Bär nur mit den Dateinamen. <button type="button" class="linklike" data-guide>So bekommst du einen kostenlosen Key</button> (dauert etwa 5 Minuten).</p>
     </div>
 
@@ -328,7 +343,7 @@ a.linkbtn {
       <span class="grow" id="selinfo" aria-live="polite"></span>
       <button type="button" class="btn small" id="selready">Alle bereiten wählen</button>
       <button type="button" class="btn small" id="selnone">Keine</button>
-      <button type="button" class="btn go" id="apply"><span aria-hidden="true">🐻 </span>Einsortieren</button>
+      <button type="button" class="btn go" id="apply"><span aria-hidden="true">🐻 </span><span class="lbl">Einsortieren</span></button>
     </div>
     <div class="card empty" id="empty">
       <div class="big" aria-hidden="true">🍯</div>
@@ -622,6 +637,7 @@ async function loadConfig() {
   const c = state.cfg;
   $("#src").value = c.source_dir || "";
   $("#dst").value = c.target_dir || "";
+  setMode(!!c.in_place);
   $("#key").value = c.tmdb_api_key || "";
   $("#lang").value = c.language || "de-DE";
   $("#tmovie").value = c.movie_template;
@@ -790,6 +806,21 @@ $("#save").onclick = async () => {
   }
 };
 
+// Einsortieren oder nur umbenennen
+const inPlace = () => $('input[name="mode"][value="inplace"]').checked;
+function setMode(on) {
+  $(`input[name="mode"][value="${on ? "inplace" : "sort"}"]`).checked = true;
+  $("#dst-field").hidden = on;
+  $("#inplace-hint").hidden = !on;
+  $(".lbl", $("#apply")).textContent = on ? "Umbenennen" : "Einsortieren";
+}
+$$('input[name="mode"]').forEach(r => r.addEventListener("change", () => {
+  setMode(inPlace());
+  bear("idle", inPlace() ? "Gut, ich lasse alles in seinem Ordner und gebe nur schöne Namen." : "Gut, ich räume alles in deine Bibliothek.", 3000);
+  // Die alte Vorschau passt nicht mehr, also gleich neu schnüffeln.
+  if (state.items.length && $("#src").value.trim()) $("#scan").click();
+}));
+
 // Sortieren
 $("#scan").onclick = async () => {
   if (state.busy) return;
@@ -799,7 +830,8 @@ $("#scan").onclick = async () => {
   $(".lbl", btn).textContent = "Schnüffelt …";
   bear("sniff", "Schnüffel, schnüffel … ich schaue mir alles an.");
   try {
-    const r = await api("POST", "/api/scan", { source_dir: $("#src").value.trim(), target_dir: $("#dst").value.trim() });
+    const r = await api("POST", "/api/scan", { source_dir: $("#src").value.trim(), target_dir: $("#dst").value.trim(), in_place: inPlace() });
+    state.cfg.in_place = inPlace();
     state.filter = null;
     setItems(r, true);
     const n = state.items.length;
@@ -1079,7 +1111,8 @@ $("#apply").onclick = async () => {
   const chosen = state.items.filter(i => state.sel.has(i.id));
   if (!chosen.length) return;
   const copies = chosen.filter(i => i.action === "copy").length;
-  const msg = `${chosen.length} Videos (plus Begleitdateien) werden ${copies === chosen.length ? "kopiert" : copies ? "verschoben bzw. kopiert" : "verschoben"}.\nÜber den Verlauf lässt sich das rückgängig machen.\n\nLos geht's?`;
+  const how = inPlace() ? "im Quellordner umbenannt" : copies === chosen.length ? "kopiert" : copies ? "verschoben bzw. kopiert" : "verschoben";
+  const msg = `${chosen.length} Videos (plus Begleitdateien) werden ${how}.\nÜber den Verlauf lässt sich das rückgängig machen.\n\nLos geht's?`;
   if (!confirm(msg)) return;
   bear("sniff", "Ich trage alles an seinen Platz …");
   state.applying = true;
@@ -1093,9 +1126,9 @@ $("#apply").onclick = async () => {
     const warns = r.warnings?.length ? ` ${r.warnings.length} Zusatzdatei(en) fehlen: ${r.warnings.slice(0, 3).join("; ")}.` : "";
     const servers = r.refreshed?.length ? " " + r.refreshed.join(". ") + "." : "";
     if (errs) bear("confused", `Fertig, aber ${errs} Datei(en) hatten Probleme. Details stehen beim jeweiligen Eintrag.${warns}${servers}`, 6000);
-    else if (warns) bear("confused", `Fertig! ${r.done} Videos sind einsortiert.${warns}${servers}`, 6000);
-    else if (state.items.length) bear("happy", `Fertig! ${r.done} Videos sind einsortiert und aus der Liste verschwunden. Übrig ist, was noch geprüft werden will.${servers}`, 3500);
-    else bear("happy", `Fertig! Alle ${r.done} Videos sind ordentlich einsortiert.${servers}`, 3000);
+    else if (warns) bear("confused", `Fertig! ${r.done} Videos sind ${inPlace() ? "umbenannt" : "einsortiert"}.${warns}${servers}`, 6000);
+    else if (state.items.length) bear("happy", `Fertig! ${r.done} Videos sind ${inPlace() ? "umbenannt" : "einsortiert"} und aus der Liste verschwunden. Übrig ist, was noch geprüft werden will.${servers}`, 3500);
+    else bear("happy", `Fertig! Alle ${r.done} Videos sind ordentlich ${inPlace() ? "umbenannt" : "einsortiert"}.${servers}`, 3000);
   } catch (e) {
     bear("confused", e.message, 4000);
   } finally {

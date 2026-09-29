@@ -204,7 +204,7 @@ func WriteExtras(ctx context.Context, cfg Config, db *TMDB, it *Item) (created, 
 	if (!x.NFO && !x.Artwork) || it.Info.TMDBID == 0 || !db.Enabled() {
 		return nil, nil
 	}
-	dst, _ := filepath.Abs(cfg.TargetDir)
+	dst, _ := filepath.Abs(cfg.Target())
 	w := &extraWriter{ctx: ctx, db: db, dst: dst}
 	meta, err := db.Meta(ctx, it.Info.Series, it.Info.TMDBID)
 	if err != nil {

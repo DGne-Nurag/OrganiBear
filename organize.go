@@ -74,10 +74,10 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 	if st, err := os.Stat(src); err != nil || !st.IsDir() {
 		return nil, fmt.Errorf("Quellordner %s nicht gefunden", src)
 	}
-	if cfg.TargetDir == "" {
+	if cfg.Target() == "" {
 		return nil, errors.New("bitte einen Zielordner angeben")
 	}
-	dst, _ := filepath.Abs(cfg.TargetDir)
+	dst, _ := filepath.Abs(cfg.Target())
 
 	videos := map[string][]scanned{}     // Ordner -> Videos
 	companions := map[string][]scanned{} // Ordner -> Begleitdateien
@@ -122,7 +122,7 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 		sort.Slice(vs, func(i, j int) bool { return vs[i].path < vs[j].path })
 		for _, v := range vs {
 			rel, _ := filepath.Rel(src, v.path)
-			it := &Item{ID: len(items) + 1, Source: v.path, RelSource: rel, Action: v.rule.Action}
+			it := &Item{ID: len(items) + 1, Source: v.path, RelSource: rel, Action: inPlaceAction(cfg, v.rule.Action)}
 			it.Parsed = ParsePath(rel)
 			base := strings.ToLower(strings.TrimSuffix(filepath.Base(v.path), filepath.Ext(v.path)))
 			var cands []scanned
@@ -142,7 +142,7 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 					continue
 				}
 				used[c.path] = true
-				it.Companions = append(it.Companions, FileOp{Source: c.path, Action: c.rule.Action})
+				it.Companions = append(it.Companions, FileOp{Source: c.path, Action: inPlaceAction(cfg, c.rule.Action)})
 			}
 			items = append(items, it)
 		}
@@ -357,6 +357,15 @@ func applyTVDB(ctx context.Context, db *TMDB, it *Item, c Candidate) {
 
 // companionSuffix liefert den Teil des Begleitdatei-Namens, der an den neuen
 // Videonamen angehängt wird, z. B. ".de.forced.srt".
+// inPlaceAction: Beim Umbenennen im selben Ordner wird nicht kopiert, sonst
+// lägen danach alle Dateien doppelt da.
+func inPlaceAction(cfg Config, a string) string {
+	if cfg.InPlace && a == ActionCopy {
+		return ActionMove
+	}
+	return a
+}
+
 func companionSuffix(video, companion string) string {
 	vb := strings.TrimSuffix(filepath.Base(video), filepath.Ext(video))
 	cn := filepath.Base(companion)
@@ -368,7 +377,7 @@ func companionSuffix(video, companion string) string {
 
 // PlanTargets berechnet Zielpfade und Status für alle offenen Einträge.
 func PlanTargets(cfg Config, items []*Item) {
-	dst, _ := filepath.Abs(cfg.TargetDir)
+	dst, _ := filepath.Abs(cfg.Target())
 	groups := map[string][]*Item{}
 	for _, it := range items {
 		if it.Status == StatusDone {
@@ -398,12 +407,12 @@ func PlanTargets(cfg Config, items []*Item) {
 			it.Status, it.Message = StatusError, "Ziel liegt außerhalb des Zielordners"
 		case it.Target == it.Source:
 			it.Status, it.Message = StatusSame, "Liegt schon richtig"
-		case exists(it.Target):
+		case exists(it.Target) && !caseOnly(it.Source, it.Target):
 			it.Status, it.Message = StatusConflict, "Ziel existiert bereits. Über „Anpassen“ kannst du einen anderen Namen vergeben."
 		}
 		if it.Status == "" {
 			for _, c := range it.Companions {
-				if c.Target != c.Source && exists(c.Target) {
+				if c.Target != c.Source && exists(c.Target) && !caseOnly(c.Source, c.Target) {
 					it.Status, it.Message = StatusConflict, "Begleitdatei existiert bereits: "+filepath.Base(c.Target)
 				}
 			}
@@ -483,7 +492,7 @@ type ExtrasFunc func(it *Item) (created, warns []string)
 // Apply führt die ausgewählten Einträge aus und schreibt ein Journal.
 // extras darf nil sein.
 func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string, extras ExtrasFunc) (*Journal, string, error) {
-	dst, _ := filepath.Abs(cfg.TargetDir)
+	dst, _ := filepath.Abs(cfg.Target())
 	src, _ := filepath.Abs(cfg.SourceDir)
 	j := &Journal{Created: time.Now(), SourceDir: src, TargetDir: dst}
 	taken := map[string]bool{} // von doppelten Einträgen nur den ersten gewählten ausführen
@@ -511,6 +520,10 @@ func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string, extra
 				break
 			}
 			j.Ops = append(j.Ops, op)
+			if cfg.InPlace && op.Action == ActionMove {
+				// Beim Umbenennen im selben Ordner keine leeren Release-Ordner zurücklassen.
+				pruneEmpty(src, filepath.Dir(op.Source))
+			}
 		}
 		if it.Status == StatusDone && extras != nil {
 			created, warns := extras(it)

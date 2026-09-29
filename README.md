@@ -44,7 +44,11 @@ in eine ordentliche Bibliothek.
 3. Beim ersten Start führt der Bär Schritt für Schritt zum kostenlosen TMDB-Key: Konto anlegen, Key beantragen
    (mit Vorlage zum Kopieren für das Formular), einfügen, fertig. Der Key wird vor dem Speichern bei TMDB geprüft.
    Später findest du die Anleitung unter **Einstellungen**, dort auch Vorlagen und Dateiregeln.
-4. Unter **Sortieren** Quelle und Ziel wählen, **Schnüffeln** drücken, Vorschau prüfen, **Einsortieren**.
+4. Unter **Sortieren** wählen, was passieren soll:
+   - **Einsortieren:** Quelle und Ziel wählen, die Dateien kommen in die Bibliothek im Zielordner.
+   - **Nur umbenennen:** nur die Quelle wählen. Die Dateien bleiben dort und bekommen Namen und Unterordner
+     nach deinen Vorlagen; leere alte Ordner werden weggeräumt, Kopieren wird dabei zu Umbenennen.
+5. **Schnüffeln** drücken, Vorschau prüfen, **Einsortieren** bzw. **Umbenennen**. Alles lässt sich im **Verlauf** rückgängig machen.
 
 ### Optionen
 
