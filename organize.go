@@ -19,7 +19,8 @@ const (
 	StatusReady     = "ready"     // bereit, Treffer aus der Datenbank
 	StatusOffline   = "offline"   // bereit, nur aus dem Dateinamen (kein API-Key)
 	StatusUnmatched = "unmatched" // kein eindeutiger Treffer, bitte prüfen
-	StatusConflict  = "conflict"  // Ziel existiert oder ist doppelt
+	StatusConflict  = "conflict"  // Ziel existiert bereits
+	StatusDuplicate = "duplicate" // mehrere Dateien wollen dasselbe Ziel, eine davon wählen
 	StatusSame      = "same"      // liegt schon richtig
 	StatusDone      = "done"
 	StatusError     = "error"
@@ -208,7 +209,7 @@ func companionSuffix(video, companion string) string {
 // PlanTargets berechnet Zielpfade und Status für alle offenen Einträge.
 func PlanTargets(cfg Config, items []*Item) {
 	dst, _ := filepath.Abs(cfg.TargetDir)
-	seen := map[string]*Item{}
+	groups := map[string][]*Item{}
 	for _, it := range items {
 		if it.Status == StatusDone {
 			continue
@@ -236,7 +237,7 @@ func PlanTargets(cfg Config, items []*Item) {
 		case it.Target == it.Source:
 			it.Status, it.Message = StatusSame, "Liegt schon richtig"
 		case exists(it.Target):
-			it.Status, it.Message = StatusConflict, "Ziel existiert bereits"
+			it.Status, it.Message = StatusConflict, "Ziel existiert bereits. Über „Anpassen“ kannst du einen anderen Namen vergeben."
 		}
 		if it.Status == "" {
 			for _, c := range it.Companions {
@@ -245,29 +246,51 @@ func PlanTargets(cfg Config, items []*Item) {
 				}
 			}
 		}
-		key := strings.ToLower(it.Target)
-		if other, ok := seen[key]; ok && it.Status != StatusSame {
-			it.Status, it.Message = StatusConflict, fmt.Sprintf("Gleiches Ziel wie Nr. %d", other.ID)
-			if other.Status != StatusDone {
-				other.Status, other.Message = StatusConflict, fmt.Sprintf("Gleiches Ziel wie Nr. %d", it.ID)
+		if it.Status == "" {
+			switch {
+			case it.Matched:
+				it.Status = StatusReady
+			case hasKey(cfg):
+				it.Status = StatusUnmatched
+				if it.Message == "" {
+					it.Message = "Nichts in der Datenbank gefunden"
+				}
+			default:
+				it.Status = StatusOffline
 			}
 		}
-		seen[key] = it
-		if it.Status != "" {
-			continue
-		}
-		switch {
-		case it.Matched:
-			it.Status = StatusReady
-		case hasKey(cfg):
-			it.Status = StatusUnmatched
-			if it.Message == "" {
-				it.Message = "Nichts in der Datenbank gefunden"
-			}
-		default:
-			it.Status = StatusOffline
+		if selectableStatus(it.Status) {
+			key := strings.ToLower(it.Target)
+			groups[key] = append(groups[key], it)
 		}
 	}
+
+	// Mehrere Dateien mit demselben Ziel: als "doppelt" markieren und die
+	// jeweils anderen beim Namen nennen, damit man eine davon wählen kann.
+	for _, g := range groups {
+		if len(g) < 2 {
+			continue
+		}
+		for _, it := range g {
+			var others []string
+			for _, o := range g {
+				if o != it {
+					others = append(others, "„"+o.RelSource+"“")
+				}
+			}
+			it.Status = StatusDuplicate
+			it.Message = "Gleiches Ziel wie " + strings.Join(others, ", ") + ". Wähle eine davon aus."
+		}
+	}
+}
+
+// selectableStatus meldet, ob ein Eintrag mit diesem Status einsortiert werden darf.
+func selectableStatus(s string) bool {
+	switch s {
+	case StatusReady, StatusOffline, StatusUnmatched, StatusDuplicate:
+		return true
+	}
+	return false
 }
 
 func hasKey(cfg Config) bool { return strings.TrimSpace(cfg.TMDBKey) != "" }
@@ -286,18 +309,16 @@ func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string) (*Jou
 	dst, _ := filepath.Abs(cfg.TargetDir)
 	src, _ := filepath.Abs(cfg.SourceDir)
 	j := &Journal{Created: time.Now(), SourceDir: src, TargetDir: dst}
+	taken := map[string]bool{} // von doppelten Einträgen nur den ersten gewählten ausführen
 	for _, it := range items {
-		if !ids[it.ID] {
+		if !ids[it.ID] || !selectableStatus(it.Status) || it.Info.Title == "" {
 			continue
 		}
-		switch it.Status {
-		case StatusReady, StatusOffline, StatusUnmatched:
-		default:
+		key := strings.ToLower(it.Target)
+		if taken[key] {
 			continue
 		}
-		if it.Info.Title == "" {
-			continue
-		}
+		taken[key] = true
 		ops := append([]FileOp{{Source: it.Source, Target: it.Target, Action: it.Action}}, it.Companions...)
 		it.Status, it.Message = StatusDone, ""
 		for _, op := range ops {
