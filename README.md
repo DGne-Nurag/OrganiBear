@@ -118,3 +118,7 @@ Die Version steht danach im Startbanner. Tags mit Bindestrich (`v0.2.0-rc1`) wer
 git tag v0.1.0
 git push origin v0.1.0
 ```
+
+## Lizenz
+
+OrganiBear steht unter der [MIT-Lizenz](LICENSE). Das TMDB-Logo (`web/tmdb.svg`) ist eine Marke von TMDB und fällt nicht unter die MIT-Lizenz.
