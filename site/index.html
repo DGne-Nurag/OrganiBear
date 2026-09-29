@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OrganiBear – der Bär, der deine Filme und Serien aufräumt</title>
+<meta name="description" content="OrganiBear benennt Filme und Serien ordentlich um und sortiert sie in Ordner. Kostenlos für Windows, Mac und Linux, ohne Installation.">
+<meta property="og:title" content="OrganiBear">
+<meta property="og:description" content="Der Bär, der deine Filme und Serien aufräumt.">
+<meta property="og:image" content="screenshot.png">
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+:root {
+  --bg: #fff7ea; --card: #fff; --ink: #3b2616; --muted: #6e5541; --line: #e8d3b5;
+  --honey: #f4a73b; --honey-dark: #d9861a; --honey-ink: #8a5208; --go: #2f7d4f; --go-dark: #24613d;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 18px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--honey-ink); }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--honey-dark); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 24px; color: var(--ink); text-decoration: none; }
+.logo img { width: 44px; height: 44px; }
+.logo .name span, h1 span { color: var(--honey-ink); }
+header.top nav { display: flex; gap: 18px; flex-wrap: wrap; }
+header.top nav a { color: var(--ink); font-weight: 600; text-decoration: none; }
+header.top nav a:hover { color: var(--honey-ink); text-decoration: underline; }
+
+.hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; padding: 40px 0 56px; }
+.hero h1 { font-size: clamp(40px, 6vw, 64px); line-height: 1.05; margin: 0 0 14px; }
+.hero .lead { font-size: 22px; margin: 0 0 26px; color: var(--muted); }
+.hero .mascot { justify-self: center; width: min(320px, 70vw); height: auto; filter: drop-shadow(0 18px 30px #d9861a55); animation: bob 4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-10px) rotate(-2deg); } }
+.btn { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 12px 26px; border-radius: 999px; font: 700 20px/1.2 inherit; text-decoration: none;
+  border: 3px solid transparent; cursor: pointer; }
+.btn.go { background: var(--go); color: #fff; box-shadow: 0 6px 0 var(--go-dark); }
+.btn.go:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--go-dark); }
+.btn.go:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--go-dark); }
+.btn.soft { background: var(--card); color: var(--ink); border-color: var(--line); }
+.btn.soft:hover { border-color: var(--honey); }
+.hero .note { font-size: 15px; color: var(--muted); margin-top: 14px; }
+.actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+
+section { padding: 48px 0; }
+h2 { font-size: 34px; margin: 0 0 8px; }
+.intro { color: var(--muted); margin: 0 0 28px; font-size: 20px; }
+.card { background: var(--card); border: 3px solid var(--line); border-radius: 22px; padding: 22px; }
+video, .shot { width: 100%; height: auto; display: block; border-radius: 16px; border: 3px solid var(--line); background: #fff; }
+
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 22px; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; align-items: center; counter-increment: s; }
+.steps li::before { content: none; }
+.steps h3 { margin: 0 0 6px; font-size: 24px; }
+.steps h3::before { content: counter(s); display: inline-grid; place-items: center; width: 42px; height: 42px; margin-right: 10px; border-radius: 50%;
+  background: var(--honey); color: var(--ink); font-weight: 900; }
+.steps p { margin: 0; }
+.steps img { width: 100%; height: auto; border-radius: 14px; border: 3px solid var(--line); }
+
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.features .card h3 { margin: 0 0 6px; font-size: 21px; }
+.features .card p { margin: 0; color: var(--muted); }
+.features .ico { font-size: 34px; line-height: 1; margin-bottom: 8px; }
+
+table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 18px; overflow: hidden; border: 3px solid var(--line); }
+th, td { text-align: left; padding: 14px 18px; border-bottom: 2px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { background: #fdf0da; }
+tr.mine td { background: #eef8f1; }
+tr.mine td:first-child::after { content: " ← dein Computer"; color: var(--go); font-weight: 700; }
+
+details { background: var(--card); border: 3px solid var(--line); border-radius: 18px; padding: 4px 20px; margin-bottom: 12px; }
+summary { cursor: pointer; font-weight: 700; padding: 12px 0; min-height: 44px; }
+details p, details ol { margin: 0 0 14px; }
+kbd, code { background: #fdf0da; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: .9em; }
+
+footer { padding: 36px 0 48px; color: var(--muted); font-size: 15px; border-top: 3px solid var(--line); margin-top: 24px; }
+footer p { margin: 6px 0; }
+
+@media (max-width: 760px) {
+  .hero { grid-template-columns: 1fr; text-align: center; padding-top: 10px; }
+  .hero .mascot { grid-row: 1; width: 180px; }
+  .actions { justify-content: center; }
+  .steps li { grid-template-columns: 1fr; }
+  header.top nav { display: none; }
+  th, td { padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .hero .mascot { animation: none; }
+  .btn.go:hover, .btn.go:active { transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="logo" href="#"><img src="icon.png" alt="" width="44" height="44"><span class="name">Organi<span>Bear</span></span></a>
+    <nav aria-label="Seite">
+      <a href="#video">Video</a>
+      <a href="#so-gehts">So geht's</a>
+      <a href="#download">Download</a>
+      <a href="#fragen">Fragen</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div>
+        <h1>Organi<span>Bear</span> räumt deine Filme auf.</h1>
+        <p class="lead">Ein Ordner voller komischer Dateinamen? Der Bär findet heraus, welcher Film oder welche Folge das ist,
+          gibt jeder Datei einen schönen Namen und sortiert alles in ordentliche Ordner.</p>
+        <div class="actions">
+          <a class="btn go" id="dl-main" href="#download"><span aria-hidden="true">🐻</span> <span id="dl-label">Kostenlos herunterladen</span></a>
+          <a class="btn soft" href="#video"><span aria-hidden="true">▶</span> Video ansehen</a>
+        </div>
+        <p class="note">Für Windows, Mac und Linux. Ein einziges Programm, nichts zu installieren.</p>
+      </div>
+      <img class="mascot" src="icon.png" alt="Das OrganiBear-Symbol: ein freundlicher Bärenkopf auf honiggelbem Grund" width="320" height="320">
+    </div>
+
+    <section id="video" aria-labelledby="h-video">
+      <h2 id="h-video">In 40 Sekunden erklärt</h2>
+      <p class="intro">So sieht das aus, wenn der Bär aufräumt.</p>
+      <video controls preload="metadata" poster="video-poster.jpg" width="1280" height="720" playsinline>
+        <source src="organibear.mp4" type="video/mp4">
+        Dein Browser kann das Video nicht abspielen. <a href="organibear.mp4">Video herunterladen</a>.
+      </video>
+    </section>
+
+    <section id="so-gehts" aria-labelledby="h-steps">
+      <h2 id="h-steps">So einfach geht's</h2>
+      <p class="intro">Drei Schritte. Und nichts passiert, bevor du „Ja“ sagst.</p>
+      <ol class="steps">
+        <li>
+          <div><h3>Ordner wählen</h3><p>Sag dem Bären, wo deine Videos liegen und wo sie hin sollen. Du kannst die Ordner auch einfach ins Fenster ziehen.</p></div>
+          <img src="tour/1.jpg" alt="Die Felder für Quelle und Ziel in OrganiBear" width="1100" height="413" loading="lazy">
+        </li>
+        <li>
+          <div><h3>Schnüffeln lassen</h3><p>Der Bär schaut sich jede Datei an und zeigt dir eine Liste: So heißt sie jetzt, so wird sie heißen.</p></div>
+          <img src="tour/3.jpg" alt="Die Vorschau-Liste mit alten und neuen Dateinamen" width="1100" height="413" loading="lazy">
+        </li>
+        <li>
+          <div><h3>Einsortieren</h3><p>Passt alles? Ein Klick, und alles ist ordentlich. Und wenn nicht: Im Verlauf machst du es mit einem Klick wieder rückgängig.</p></div>
+          <img src="tour/5.jpg" alt="Der Verlauf mit dem Knopf „Rückgängig machen“" width="1100" height="413" loading="lazy">
+        </li>
+      </ol>
+    </section>
+
+    <section id="kann" aria-labelledby="h-feat">
+      <h2 id="h-feat">Was der Bär alles kann</h2>
+      <p class="intro">Für den Anfang reicht: starten, Ordner wählen, fertig. Den Rest entdeckst du, wenn du magst.</p>
+      <div class="features">
+        <div class="card"><div class="ico" aria-hidden="true">🔎</div><h3>Erkennt fast alles</h3><p><code>S01E02</code>, <code>1x02</code>, „Staffel 1 Folge 2“, Jahreszahlen, Qualitätsangaben, mehrteilige Filme.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">🎬</div><h3>Richtige Titel</h3><p>Holt Titel, Jahr und Folgennamen in deiner Sprache aus The Movie Database (TMDB), auf Wunsch auch von TheTVDB.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">🗂️</div><h3>Deine Ordnung</h3><p>Du bestimmst, wie Ordner und Dateien heißen. Die Vorschau zeigt sofort, wie es aussieht.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">↩️</div><h3>Alles rückgängig</h3><p>Nichts wird überschrieben. Jeder Lauf steht im Verlauf und lässt sich zurückdrehen.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">💬</div><h3>Untertitel</h3><p>Fehlende Untertitel in deinen Sprachen lädt er auf Wunsch von OpenSubtitles.com nach.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">📺</div><h3>Für Plex, Jellyfin und Kodi</h3><p>Auf Wunsch mit NFO-Dateien, Postern und Hintergrundbildern.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">🥇</div><h3>Findet die bessere Version</h3><p>Liegt ein Film doppelt da, schlägt er die bessere Qualität vor.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">📦</div><h3>MP4 in MKV</h3><p>Packt MP4-Videos auf Wunsch in MKV um, ohne Qualitätsverlust.</p></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-shot">
+      <h2 id="h-shot">So sieht er aus</h2>
+      <p class="intro">Die Vorschau, bevor etwas passiert.</p>
+      <img class="shot" src="screenshot.png" alt="OrganiBear mit einer Vorschau-Liste von Filmen und Serien" loading="lazy">
+    </section>
+
+    <section id="download" aria-labelledby="h-dl">
+      <h2 id="h-dl">Herunterladen</h2>
+      <p class="intro">Kostenlos. Immer die neueste Version. Nimm die Datei, die zu deinem Computer passt.</p>
+      <table>
+        <thead><tr><th scope="col">Dein Computer</th><th scope="col">Datei</th></tr></thead>
+        <tbody>
+          <tr data-os="windows"><td><strong>Windows</strong> 10 oder 11</td><td><a href="https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Windows.exe">OrganiBear-Windows.exe</a></td></tr>
+          <tr data-os="mac"><td><strong>Mac</strong> mit Apple-Chip (M1, M2, M3 …, ab 2020)</td><td><a href="https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Mac-AppleSilicon">OrganiBear-Mac-AppleSilicon</a></td></tr>
+          <tr data-os="mac"><td><strong>Mac</strong> mit Intel-Chip (ältere Macs)</td><td><a href="https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Mac-Intel">OrganiBear-Mac-Intel</a></td></tr>
+          <tr data-os="linux"><td><strong>Linux</strong> mit Bildschirm (Ubuntu, Mint, Fedora …)</td><td><a href="https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Linux">OrganiBear-Linux</a></td></tr>
+          <tr data-os="linux-arm"><td><strong>Linux</strong> auf ARM (z. B. Raspberry Pi mit Desktop)</td><td><a href="https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Linux-ARM">OrganiBear-Linux-ARM</a></td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="color:var(--muted);font-size:15px">Welcher Mac? Apfel-Menü › „Über diesen Mac“: Steht dort „Chip Apple M…“, nimm Apple-Chip, bei „Prozessor Intel“ die Intel-Version.
+        Alle Versionen und Prüfsummen stehen unter <a href="https://github.com/DGne-Nurag/OrganiBear/releases">Releases</a>.</p>
+    </section>
+
+    <section id="fragen" aria-labelledby="h-faq">
+      <h2 id="h-faq">Fragen</h2>
+      <details>
+        <summary>Windows sagt „Der Computer wurde durch Windows geschützt“. Was nun?</summary>
+        <p>Das kommt, weil OrganiBear neu ist und nicht von einer großen Firma stammt. Klick auf <strong>„Weitere Informationen“</strong> und dann auf <strong>„Trotzdem ausführen“</strong>. Das musst du nur einmal machen.</p>
+      </details>
+      <details>
+        <summary>Wie starte ich das Programm auf dem Mac?</summary>
+        <ol>
+          <li>Öffne das Programm „Terminal“ und tippe <code>chmod +x </code> (mit Leerzeichen am Ende).</li>
+          <li>Zieh die heruntergeladene Datei ins Terminal-Fenster und drück die Eingabetaste.</li>
+          <li>Jetzt im Finder mit <strong>Rechtsklick › Öffnen</strong> starten. Der Mac fragt einmal nach, weil das Programm nicht signiert ist.</li>
+          <li>Lässt er dich nicht? Dann Apfel-Menü › Systemeinstellungen › Datenschutz &amp; Sicherheit, ganz nach unten scrollen und bei OrganiBear auf <strong>„Trotzdem öffnen“</strong> klicken.</li>
+        </ol>
+      </details>
+      <details>
+        <summary>Wie starte ich das Programm unter Linux?</summary>
+        <p>Einmal ausführbar machen: im Dateimanager Rechtsklick › Eigenschaften › „Als Programm ausführen“ anhaken, oder im Terminal <code>chmod +x OrganiBear-Linux</code>. Danach per Doppelklick starten.</p>
+      </details>
+      <details>
+        <summary>Brauche ich einen Account oder einen Schlüssel?</summary>
+        <p>Nein, der Bär funktioniert sofort. Mit einem kostenlosen Schlüssel von The Movie Database findet er aber richtige Titel und Folgennamen. Das Programm zeigt dir Schritt für Schritt, wie du ihn bekommst (dauert etwa 5 Minuten).</p>
+      </details>
+      <details>
+        <summary>Kann dabei etwas kaputtgehen?</summary>
+        <p>Der Bär zeigt dir immer zuerst eine Vorschau und macht erst etwas, wenn du bestätigst. Er überschreibt nie eine vorhandene Datei. Und jeder Lauf lässt sich im Verlauf rückgängig machen.</p>
+      </details>
+      <details>
+        <summary>Kostet das etwas? Sammelt es Daten?</summary>
+        <p>Nein. OrganiBear ist kostenlos und quelloffen (MIT-Lizenz). Es läuft nur auf deinem Computer. Ins Internet geht es nur, um Titel bei TMDB/TheTVDB nachzuschlagen und, wenn du willst, Untertitel zu laden.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>OrganiBear</strong> · <a href="https://github.com/DGne-Nurag/OrganiBear">Quellcode auf GitHub</a> · <a href="https://github.com/DGne-Nurag/OrganiBear/issues">Fehler melden oder Wunsch äußern</a> · MIT-Lizenz</p>
+    <p>Film- und Seriendaten stammen von The Movie Database (TMDB) und TheTVDB, Untertitel von OpenSubtitles.com. OrganiBear nutzt die TMDB-API, wird aber von TMDB weder unterstützt noch zertifiziert.</p>
+    <p>Diese Seite lädt nichts von fremden Servern und setzt keine Cookies.</p>
+  </footer>
+</div>
+<script>
+// Passenden Download vorschlagen. Beim Mac lässt sich der Chip im Browser nicht sicher erkennen,
+// dort geht der Knopf zur Tabelle.
+(() => {
+  const ua = navigator.userAgent, plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+  let os = null;
+  if (/Win/i.test(plat) || /Windows/.test(ua)) os = "windows";
+  else if (/Mac/i.test(plat) || /Mac OS X/.test(ua)) os = /iPhone|iPad/.test(ua) || navigator.maxTouchPoints > 1 ? null : "mac";
+  else if (/Android/i.test(ua)) os = null;
+  else if (/Linux/i.test(plat) || /Linux/.test(ua)) os = /aarch64|arm/i.test(plat + ua) ? "linux-arm" : "linux";
+  if (!os) return;
+  const rows = document.querySelectorAll(`tr[data-os="${os}"]`);
+  rows.forEach(r => r.classList.add("mine"));
+  if (rows.length === 1) {
+    const a = rows[0].querySelector("a");
+    document.getElementById("dl-main").href = a.href;
+    document.getElementById("dl-label").textContent = { windows: "Für Windows herunterladen", linux: "Für Linux herunterladen", "linux-arm": "Für Linux (ARM) herunterladen" }[os];
+  } else {
+    document.getElementById("dl-label").textContent = "Für den Mac herunterladen";
+  }
+})();
+</script>
+</body>
+</html>
