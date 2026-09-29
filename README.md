@@ -199,4 +199,4 @@ Nach dem ersten Release bittet OpenSubtitles darum, die App mit ihrem User-Agent
 
 ## Lizenz
 
-OrganiBear steht unter der [MIT-Lizenz](LICENSE). Das TMDB-Logo (`web/tmdb.svg`) ist eine Marke von TMDB und fällt nicht unter die MIT-Lizenz.
+OrganiBear steht unter der [MIT-Lizenz](LICENSE). Das TMDB-Logo (`web/tmdb.svg`) ist eine Marke von TMDB, das TheTVDB-Logo (`web/thetvdb.png`) eine Marke von TheTVDB.com; beide fallen nicht unter die MIT-Lizenz.

@@ -201,6 +201,9 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
 .about p { margin: 4px 0; }
 .about .tmdb { display: inline-block; margin: 2px 0 6px; }
 .about .tmdb img { display: block; height: 18px; width: auto; }
+/* Das TheTVDB-Logo hat weiße Schrift und steht darum immer auf dunklem Grund. */
+.about .tvdb { display: inline-block; margin: 6px 0 2px; padding: 4px 8px; border-radius: 8px; background: #26221f; }
+.about .tvdb img { display: block; height: 22px; width: auto; }
 [hidden] { display: none !important; }
 @media (max-width: 640px) {
   html { scroll-padding-bottom: 160px; }
@@ -441,6 +444,7 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
     <h2 id="h-about" class="label">Über OrganiBear</h2>
     <a class="tmdb" href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer"><img src="tmdb.svg" alt="The Movie Database (TMDB), öffnet neues Fenster" width="137" height="18"></a>
     <p>Titel, Jahreszahlen, Folgentitel und Poster stammen von The Movie Database (TMDB).</p>
+    <a class="tvdb" href="https://thetvdb.com" target="_blank" rel="noopener noreferrer"><img src="thetvdb.png" alt="TheTVDB.com, öffnet neues Fenster" width="41" height="22"></a>
     <p>Ergänzende Seriendaten stammen von <a href="https://thetvdb.com" target="_blank" rel="noopener noreferrer">TheTVDB.com (öffnet neues Fenster)</a>, wenn TMDB eine Serie nicht kennt.</p>
     <p>Nachgeladene Untertitel stammen von <a href="https://www.opensubtitles.com" target="_blank" rel="noopener noreferrer">OpenSubtitles.com (öffnet neues Fenster)</a>.</p>
     <p lang="en">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
