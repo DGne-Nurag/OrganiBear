@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          check-latest: true
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: windows, goarch: amd64, ext: .exe }
+          - { goos: darwin, goarch: arm64, ext: "" }
+          - { goos: darwin, goarch: amd64, ext: "" }
+          - { goos: linux, goarch: amd64, ext: "" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          check-latest: true
+      - run: go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_SHA::7}" -o dist/organibear-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: organibear-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*

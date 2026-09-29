@@ -1,0 +1,176 @@
+package main
+
+import (
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+// Parsed ist das, was der Bär aus einem unordentlichen Dateinamen herausliest.
+type Parsed struct {
+	Title        string `json:"title"`
+	Year         int    `json:"year,omitempty"`
+	Series       bool   `json:"series"`
+	Season       int    `json:"season,omitempty"`
+	Episode      int    `json:"episode,omitempty"`
+	EpisodeEnd   int    `json:"episode_end,omitempty"`
+	EpisodeTitle string `json:"episode_title,omitempty"`
+	Resolution   string `json:"resolution,omitempty"`
+}
+
+var (
+	reSxxExx     = regexp.MustCompile(`(?i)\bs(\d{1,2}) ?e(\d{1,3})(?: ?-? ?e(\d{1,3}))?\b`)
+	reNxNN       = regexp.MustCompile(`(?i)\b(\d{1,2})x(\d{2,3})\b`)
+	reSeasonEp   = regexp.MustCompile(`(?i)\b(?:season|staffel)[ -]*(\d{1,2})[ -]*(?:episode|folge|ep|e)[ -]*(\d{1,3})\b`)
+	reYear       = regexp.MustCompile(`\b((?:19|20)\d{2})\b`)
+	reResolution = regexp.MustCompile(`(?i)\b(2160p|1080p|1080i|720p|576p|480p|4k|uhd)\b`)
+	reJunk       = regexp.MustCompile(`(?i)\b(2160p|1080p|1080i|720p|576p|480p|4k|uhd|blu ?ray|bdrip|brrip|dvdrip|dvd9|dvd5|web ?-?dl|webrip|hdtv|hdrip|x264|x265|h ?264|h ?265|hevc|avc|xvid|divx|aac|ac3|eac3|dts|dd5|ddp5?|atmos|truehd|remux|proper|repack|extended|unrated|uncut|directors cut|german|deutsch|multi|dubbed|subbed|hdr|hdr10|10bit|complete)\b`)
+	reLeadGroup  = regexp.MustCompile(`^\s*\[[^\]]*\]\s*`)
+	reBrackets   = regexp.MustCompile(`[\[\(\{][^\]\)\}]*[\]\)\}]`)
+	reSpaces     = regexp.MustCompile(`\s+`)
+	reSeasonDir  = regexp.MustCompile(`(?i)^(?:season|staffel|s)[ ._-]*(\d{1,2})$`)
+	reEpOnly     = regexp.MustCompile(`(?i)(?:^|\b(?:e|ep|episode|folge) ?)(\d{1,3})\b`)
+)
+
+// normalize ersetzt Punkte und Unterstriche durch Leerzeichen und entfernt
+// führende Release-Gruppen wie "[Gruppe]".
+func normalize(name string) string {
+	for reLeadGroup.MatchString(name) {
+		name = reLeadGroup.ReplaceAllString(name, "")
+	}
+	name = strings.NewReplacer(".", " ", "_", " ").Replace(name)
+	return strings.TrimSpace(reSpaces.ReplaceAllString(name, " "))
+}
+
+// cleanTitle entfernt Klammerreste, Trenner und Leerzeichen an den Rändern.
+func cleanTitle(s string) string {
+	// Klammern mit Release-Kram oder Zahlen fliegen raus, "(US)" o. ä. bleibt als Text.
+	s = reBrackets.ReplaceAllStringFunc(s, func(b string) string {
+		inner := strings.TrimSpace(b[1 : len(b)-1])
+		if inner == "" || reJunk.MatchString(inner) || strings.Trim(inner, "0123456789 ") == "" {
+			return " "
+		}
+		return " " + inner + " "
+	})
+	s = strings.NewReplacer("(", " ", ")", " ", "[", " ", "]", " ", "{", " ", "}", " ").Replace(s)
+	s = reSpaces.ReplaceAllString(s, " ")
+	return strings.Trim(s, " -–:,")
+}
+
+// cutJunk schneidet alles ab dem ersten Qualitäts-/Release-Merkmal ab.
+func cutJunk(s string) string {
+	if loc := reJunk.FindStringIndex(s); loc != nil {
+		s = s[:loc[0]]
+	}
+	// Release-Gruppe am Ende, z. B. "-GRUPPE"
+	if i := strings.LastIndex(s, "-"); i > 0 && !strings.Contains(s[i:], " ") {
+		s = s[:i]
+	}
+	return s
+}
+
+// ParseName liest Titel, Jahr, Staffel und Folge aus einem Datei- oder Ordnernamen.
+func ParseName(name string) Parsed {
+	var p Parsed
+	s := normalize(name)
+	if m := reResolution.FindStringSubmatch(s); m != nil {
+		p.Resolution = strings.ToLower(m[1])
+	}
+
+	// Serienmuster
+	var loc []int
+	if m := reSxxExx.FindStringSubmatchIndex(s); m != nil {
+		loc = m
+		p.Season, _ = strconv.Atoi(s[m[2]:m[3]])
+		p.Episode, _ = strconv.Atoi(s[m[4]:m[5]])
+		if m[6] >= 0 {
+			p.EpisodeEnd, _ = strconv.Atoi(s[m[6]:m[7]])
+		}
+	} else if m := reSeasonEp.FindStringSubmatchIndex(s); m != nil {
+		loc = m
+		p.Season, _ = strconv.Atoi(s[m[2]:m[3]])
+		p.Episode, _ = strconv.Atoi(s[m[4]:m[5]])
+	} else if m := reNxNN.FindStringSubmatchIndex(s); m != nil {
+		loc = m
+		p.Season, _ = strconv.Atoi(s[m[2]:m[3]])
+		p.Episode, _ = strconv.Atoi(s[m[4]:m[5]])
+	}
+	if loc != nil {
+		p.Series = true
+		head, tail := s[:loc[0]], s[loc[1]:]
+		if y := lastYear(head); y != nil {
+			p.Year, _ = strconv.Atoi(head[y[2]:y[3]])
+			head = head[:y[0]]
+		}
+		p.Title = cleanTitle(cutJunk(head))
+		p.EpisodeTitle = cleanTitle(cutJunk(tail))
+		return p
+	}
+
+	// Film: Titel steht vor dem (letzten) Jahr
+	if y := lastYear(s); y != nil {
+		p.Year, _ = strconv.Atoi(s[y[2]:y[3]])
+		p.Title = cleanTitle(s[:y[0]])
+		return p
+	}
+	p.Title = cleanTitle(cutJunk(s))
+	return p
+}
+
+// lastYear sucht die letzte Jahreszahl, die nicht am Anfang steht
+// (damit "1917" oder "2012" als Titel erhalten bleiben).
+func lastYear(s string) []int {
+	all := reYear.FindAllStringSubmatchIndex(s, -1)
+	for i := len(all) - 1; i >= 0; i-- {
+		if strings.TrimSpace(strings.Trim(s[:all[i][0]], "([{ ")) != "" {
+			return all[i]
+		}
+	}
+	return nil
+}
+
+// ParsePath parst eine Datei und zieht bei Bedarf die Ordnernamen hinzu,
+// z. B. "Breaking Bad/Staffel 1/S01E02.mkv" oder "Inception (2010)/film.mkv".
+func ParsePath(path string) Parsed {
+	base := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	p := ParseName(base)
+
+	dir := filepath.Dir(path)
+	dirName := filepath.Base(dir)
+	dirSeason := 0
+	if m := reSeasonDir.FindStringSubmatch(normalize(dirName)); m != nil {
+		dirSeason, _ = strconv.Atoi(m[1])
+		dir = filepath.Dir(dir)
+		dirName = filepath.Base(dir)
+	}
+	if dirName == "." || dirName == string(filepath.Separator) {
+		return p
+	}
+	d := ParseName(dirName)
+
+	if p.Series {
+		if p.Title == "" {
+			p.Title = d.Title
+			if p.Year == 0 {
+				p.Year = d.Year
+			}
+		}
+		return p
+	}
+	if dirSeason > 0 {
+		// Datei im Staffelordner ohne SxxExx: nur die Folgennummer im Namen?
+		if m := reEpOnly.FindStringSubmatch(normalize(base)); m != nil {
+			ep, _ := strconv.Atoi(m[1])
+			return Parsed{Title: d.Title, Year: d.Year, Series: true, Season: dirSeason, Episode: ep, Resolution: p.Resolution}
+		}
+	}
+	if p.Title == "" || (p.Year == 0 && d.Year != 0 && !d.Series) {
+		res := p.Resolution
+		if res == "" {
+			res = d.Resolution
+		}
+		p = Parsed{Title: d.Title, Year: d.Year, Resolution: res}
+	}
+	return p
+}
