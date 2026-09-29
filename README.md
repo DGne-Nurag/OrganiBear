@@ -91,6 +91,8 @@ CI prüft bei jedem Push und zusätzlich jeden Montag:
 - Barrierefreiheit nach WCAG 2.2 AA mit Playwright und axe, hell und dunkel, inklusive Tastaturbedienung und 320 px Breite:
   `cd e2e && npm ci && npx playwright install chromium && npm test`
 
+Den Screenshot oben erzeugt `cd e2e && npm run screenshot` neu.
+
 ## TMDB
 
 <a href="https://www.themoviedb.org"><img src="web/tmdb.svg" alt="The Movie Database (TMDB)" height="16"></a>
