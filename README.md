@@ -19,6 +19,7 @@ in eine ordentliche Bibliothek.
 - **Dateiregeln:** Du legst fest, welche Dateiendungen Videos und welche Begleitdateien sind (Untertitel, NFO, Bilder …) und ob sie verschoben, kopiert oder ignoriert werden. Begleitdateien bekommen den neuen Namen ihres Videos (`Film (2010).de.srt`).
 - **Erst Vorschau, dann Aktion.** Nichts wird bewegt, bevor du bestätigst. Vorhandene Dateien werden nie überschrieben.
 - **Rückgängig:** Jeder Lauf landet im Verlauf und lässt sich mit einem Klick zurückdrehen.
+- **Fehlende Untertitel** in deinen Sprachen lädt er auf Wunsch von OpenSubtitles.com nach.
 - **Für Plex, Jellyfin und Kodi:** auf Wunsch NFO-Dateien, Poster und Hintergrundbilder dazu, danach liest der Mediaserver seine Bibliothek neu ein.
 
 ## Loslegen
@@ -61,6 +62,24 @@ Unter **Einstellungen › Mediaserver** lässt sich einschalten, was beim Einsor
 
 Vorhandene Dateien werden nie überschrieben, „Rückgängig“ entfernt die angelegten Dateien wieder.
 Die Zugangsdaten liegen nur in der lokalen Konfigurationsdatei.
+
+## Untertitel
+
+Unter **Einstellungen › Untertitel von OpenSubtitles** lassen sich fehlende Untertitel nachladen. Nach dem
+Einsortieren prüft OrganiBear für jede eingestellte Sprache (Standard: `de, en`), ob schon ein Untertitel neben dem
+Video liegt (auch `ger`, `deu`, `eng` usw. im Namen). Fehlt einer, sucht er per Datei-Fingerabdruck (OpenSubtitles-Hash)
+und TMDB-ID und speichert den besten Treffer als `<Video>.de.srt`. Treffer mit passendem Fingerabdruck und
+menschliche Übersetzungen gehen vor.
+
+- Ohne Konto erlaubt OpenSubtitles 5 Downloads pro Tag, mit einem kostenlosen
+  [OpenSubtitles-Konto](https://www.opensubtitles.com) 20, mit VIP bis zu 1000. Benutzer und Passwort trägst du
+  optional in den Einstellungen ein. Ist das Tageslimit erreicht, sagt der Bär Bescheid.
+- Einen eigenen API-Key trägst du nicht ein: OpenSubtitles erlaubt nur einen Key pro Anwendung, und den bringen die
+  offiziellen Releases mit. Wer selbst baut, bekommt die Untertitel-Funktion nur mit einem eigenen
+  [Consumer-Key](https://www.opensubtitles.com/consumers) (siehe „Selbst bauen“).
+- Übertragen werden Fingerabdruck, Dateigröße, Sprachen und TMDB-ID, aber keine Dateinamen oder Pfade.
+- Vorhandene Untertitel werden nie überschrieben, „Rückgängig“ entfernt die geladenen wieder.
+- Laut den Nutzungsbedingungen von OpenSubtitles ist eine **kommerzielle Nutzung nicht erlaubt**.
 
 ## Sicherheit und Barrierefreiheit
 
@@ -106,6 +125,10 @@ GOOS=windows GOARCH=amd64 go build -o organibear.exe .
 
 Tests: `go test ./...`
 
+Selbst gebaute Programme enthalten keinen OpenSubtitles-Key, die Untertitel-Funktion ist dann ausgeblendet.
+Wer eine eigene Version verteilt, legt bei OpenSubtitles einen eigenen Consumer an und baut mit
+`-ldflags "-X main.openSubtitlesKey=<Key>"`. Den Key nie ins Repository schreiben.
+
 CI prüft bei jedem Push und zusätzlich jeden Montag:
 
 - `go test` inklusive Sicherheitstests (`security_test.go`)
@@ -136,6 +159,10 @@ Die Version steht danach im Startbanner. Tags mit Bindestrich (`v0.2.0-rc1`) wer
 git tag v0.1.0
 git push origin v0.1.0
 ```
+
+Damit das Release Untertitel laden kann, muss vorher das Repository-Secret `OPENSUBTITLES_API_KEY` gesetzt sein
+(Settings › Secrets and variables › Actions). Den Key gibt es unter „API consumers“ auf opensubtitles.com.
+Nach dem ersten Release bittet OpenSubtitles darum, die App mit ihrem User-Agent (`OrganiBear v0.1.0`) zu melden.
 
 ## Lizenz
 
