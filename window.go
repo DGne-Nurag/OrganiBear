@@ -26,6 +26,8 @@ const windowAvailable = true
 
 // runWindow öffnet das Fenster und kehrt erst zurück, wenn es geschlossen ist.
 func runWindow(srv *Server) error {
+	// Der Bär als Programmsymbol. Windows holt es aus der .exe (scripts/build.sh).
+	icon, _ := webFiles.ReadFile("web/icon.png")
 	started := make(chan context.Context, 1)
 	go func() {
 		// Der Beenden-Knopf in der Oberfläche schließt auch das Fenster.
@@ -47,7 +49,7 @@ func runWindow(srv *Server) error {
 			srv.WaitIdle(10 * time.Minute)
 		},
 		Windows: &windows.Options{},
-		Mac:     &mac.Options{About: &mac.AboutInfo{Title: "OrganiBear", Message: fmt.Sprintf("Version %s", version)}},
-		Linux:   &linux.Options{ProgramName: "OrganiBear"},
+		Mac:     &mac.Options{About: &mac.AboutInfo{Title: "OrganiBear", Message: fmt.Sprintf("Version %s", version), Icon: icon}},
+		Linux:   &linux.Options{ProgramName: "OrganiBear", Icon: icon},
 	})
 }

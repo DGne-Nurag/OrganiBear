@@ -8,6 +8,8 @@ erkennt Titel, Jahr, Staffel und Folge, holt die richtigen Daten von
 [TMDB](https://www.themoviedb.org) und sortiert alles nach deiner eigenen Vorlage
 in eine ordentliche Bibliothek.
 
+**Webseite mit Video:** [dgne-nurag.github.io/OrganiBear](https://dgne-nurag.github.io/OrganiBear/)
+
 ![Screenshot](docs/screenshot.png)
 
 ## Was er kann
@@ -206,6 +208,10 @@ Mit eigenem Fenster (`KIND=desktop`, Bibliothek [Wails](https://wails.io)): Wind
 macOS und Linux brauchen cgo und müssen auf dem Zielsystem gebaut werden, Linux zusätzlich
 `libgtk-3-dev` und `libwebkit2gtk-4.1-dev`.
 
+Programmsymbol: der Bär aus `build/icon.svg` (daraus `build/icon.png` und `web/icon.png`). Für Windows packt
+`scripts/build.sh` ihn mit [go-winres](https://github.com/tc-hib/go-winres) in die `.exe`, unter Linux setzt
+das Fenster ihn selbst. Die macOS-Downloads sind nackte Programme ohne `.app`-Paket und zeigen deshalb kein Symbol.
+
 Tests: `go test ./...`
 
 Selbst gebaute Programme enthalten keinen OpenSubtitles-Key, die Untertitel-Funktion ist dann ausgeblendet.
@@ -222,6 +228,7 @@ CI prüft bei jedem Push und zusätzlich jeden Montag:
   `cd e2e && npm ci && npx playwright install chromium && npm test`
 
 Den Screenshot oben und die Bilder der Tour (`web/tour/1.jpg` bis `5.jpg`) erzeugt `cd e2e && npm run screenshot` neu.
+Die Webseite liegt in `site/` und geht bei jeder Änderung auf `main` automatisch online (`.github/workflows/pages.yml`, Bilder kommen aus `docs/` und `web/`). Das Video darin (`site/organibear.mp4`) nimmt `cd e2e && OB_SHOT_DIR=/media/Filme npm run video` aus der echten Oberfläche auf (braucht ffmpeg).
 Das gehört in jede Änderung am Aussehen.
 
 ## TMDB
