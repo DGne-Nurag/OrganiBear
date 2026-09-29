@@ -145,11 +145,23 @@ async function run() {
         { id: 2, source: "/x/b.mkv", target: "/y/b.mkv", rel_source: "Foo.mkv", parsed: { title: "Foo" }, info: { title: "Foo" },
           candidates: [], matched: false, action: "copy", companions: [], rel_target: "Filme/Foo/Foo.mkv",
           status: "unmatched", message: "Nichts in der Datenbank gefunden" },
+        { id: 3, source: "/x/c.mkv", target: "/y/c.mkv", rel_source: "One.Piece.E1071.mkv", parsed: { title: "One Piece", series: true },
+          info: { title: "One Piece", year: 1999, series: true, episode: 1071, absolute: 1071, tmdb_id: 37854 }, candidates: [], matched: true,
+          action: "move", companions: [], rel_target: "Serien/One Piece (1999)/Staffel/One Piece - SE1071.mkv", status: "unmatched",
+          message: "Folge 1071 ist fortlaufend gezählt. Bitte unter „Anpassen“ Staffel und Folge wählen." },
       ] } }));
+      await page.route("**/api/tv/37854/seasons", r => r.fulfill({ json: [{ number: 0, name: "Specials", episodes: 40 }, { number: 21, name: "Wano Kuni", episodes: 197 }] }));
+      await page.route("**/api/tv/37854/season/21", r => r.fulfill({ json: [{ number: 179, name: "Ruffy gegen Kaido" }] }));
       await page.reload();
       await page.waitForSelector(".item");
       await page.click(".item .tog");
       await axe(page, "Treffer und Suche");
+      await page.click('.item[data-id="3"] .tog');
+      await page.selectOption('.item[data-id="3"] .ps', "21");
+      await page.waitForSelector('.item[data-id="3"] .pe:not([disabled])');
+      const eps = await page.$$eval('.item[data-id="3"] .pe option', o => o.map(x => x.textContent));
+      eps.includes("179. Ruffy gegen Kaido") ? ok("Folgenliste aus TMDB") : fail("Folgenliste: " + eps.join(" | "));
+      await axe(page, "Staffel- und Folgenauswahl");
       await context.close();
     }
 

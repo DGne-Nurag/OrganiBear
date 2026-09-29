@@ -25,6 +25,7 @@ type MediaInfo struct {
 	Audio         string `json:"audio,omitempty"`     // Haupttonspur, z. B. "TrueHD 7.1"
 	Languages     string `json:"languages,omitempty"` // Tonspur-Sprachen, z. B. "DE-EN"
 	Part          int    `json:"part,omitempty"`      // Teil eines mehrteiligen Films
+	Absolute      int    `json:"absolute,omitempty"`  // fortlaufende Folgennummer, falls so im Namen
 	TMDBID        int    `json:"tmdb_id,omitempty"`
 }
 

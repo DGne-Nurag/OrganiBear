@@ -13,8 +13,8 @@ in eine ordentliche Bibliothek.
 ## Was er kann
 
 - **Ein einziges Programm.** Starten, der Browser öffnet sich, fertig. Keine Installation, keine Abhängigkeiten.
-- **Versteht viele Namensmuster:** `S01E02`, `1x02`, `Staffel 1 Folge 2`, Doppelfolgen (`S02E01E02`), Release-Gruppen, Qualitätsangaben, Jahreszahlen im Titel (`Blade Runner 2049 (2017)`), Ordnernamen wie `Serie/Staffel 2/05.mkv`, mehrteilige Filme (`Titanic.1997.CD1.avi` wird zu `Titanic (1997) - part1.avi`).
-- **Metadaten von TMDB:** richtiger Titel in deiner Sprache, Jahr und Folgentitel. Bei Unsicherheit wählst du aus den Treffern, suchst selbst oder trägst die Daten von Hand ein. Ohne API-Key arbeitet er nur mit den Dateinamen.
+- **Versteht viele Namensmuster:** `S01E02`, `1x02`, `Staffel 1 Folge 2`, Doppelfolgen (`S02E01E02`), Release-Gruppen, Qualitätsangaben, Jahreszahlen im Titel (`Blade Runner 2049 (2017)`), Ordnernamen wie `Serie/Staffel 2/05.mkv`, mehrteilige Filme (`Titanic.1997.CD1.avi` wird zu `Titanic (1997) - part1.avi`) und fortlaufende Folgennummern wie bei Anime (`One.Piece.E1071.mkv` wird über TMDB in Staffel und Folge umgerechnet).
+- **Metadaten von TMDB:** richtiger Titel in deiner Sprache, Jahr und Folgentitel. Bei Unsicherheit wählst du aus den Treffern, suchst selbst oder trägst die Daten von Hand ein. Bei Serien wählst du Staffel und Folge aus der TMDB-Liste, der Folgentitel kommt dann mit. Ohne API-Key arbeitet er nur mit den Dateinamen.
 - **Eigene Namensvorlagen** für Filme und Serien, mit Live-Vorschau.
 - **Dateiregeln:** Du legst fest, welche Dateiendungen Videos und welche Begleitdateien sind (Untertitel, NFO, Bilder …) und ob sie verschoben, kopiert oder ignoriert werden. Begleitdateien bekommen den neuen Namen ihres Videos (`Film (2010).de.srt`).
 - **Erst Vorschau, dann Aktion.** Nichts wird bewegt, bevor du bestätigst. Vorhandene Dateien werden nie überschrieben.

@@ -17,7 +17,8 @@ type Parsed struct {
 	EpisodeEnd   int    `json:"episode_end,omitempty"`
 	EpisodeTitle string `json:"episode_title,omitempty"`
 	Resolution   string `json:"resolution,omitempty"`
-	Part         int    `json:"part,omitempty"` // Teil eines mehrteiligen Films (CD1, part2 …)
+	Part         int    `json:"part,omitempty"`     // Teil eines mehrteiligen Films (CD1, part2 …)
+	Absolute     int    `json:"absolute,omitempty"` // fortlaufende Folgennummer ohne Staffel (Anime)
 }
 
 var (
@@ -34,7 +35,11 @@ var (
 	reEpOnly     = regexp.MustCompile(`(?i)(?:^|\b(?:e|ep|episode|folge) ?)(\d{1,3})\b`)
 	// Teile eines Films. "cd", "disc" und "pt" sind eindeutig, "part"
 	// und "teil" nur hinter der Jahreszahl ("Harry Potter … Part 1 (2010)" ist ein Titel).
-	rePartSure  = regexp.MustCompile(`(?i)\b(?:cd|dis[ck]|pt)[ -]?(\d{1,2})\b`)
+	rePartSure = regexp.MustCompile(`(?i)\b(?:cd|dis[ck]|pt)[ -]?(\d{1,2})\b`)
+	// Fortlaufende Folgennummern ohne Staffel: "One.Piece.E1071", "Folge 12",
+	// "[Gruppe] One Piece - 1071 [1080p]".
+	reAbsEp     = regexp.MustCompile(`(?i)(?:^|\s)(?:e|ep|folge)[ -]?(\d{1,4})\b`)
+	reAbsAnime  = regexp.MustCompile(`\s-\s(\d{2,4})(?:v\d)?(?:\s|$)`)
 	rePartMaybe = regexp.MustCompile(`(?i)\b(?:part|teil)[ -]?(\d{1,2})\b`)
 )
 
@@ -120,6 +125,18 @@ func ParseName(name string) Parsed {
 		p.Season, _ = strconv.Atoi(s[m[2]:m[3]])
 		p.Episode, _ = strconv.Atoi(s[m[4]:m[5]])
 	}
+	if loc == nil {
+		// Fortlaufende Nummer, aber keine Jahreszahl als Nummer ("Film - 2019").
+		for _, re := range []*regexp.Regexp{reAbsEp, reAbsAnime} {
+			if m := re.FindStringSubmatchIndex(s); m != nil && !reYear.MatchString(s[m[2]:m[3]]) {
+				n, _ := strconv.Atoi(s[m[2]:m[3]])
+				if n > 0 {
+					loc, p.Episode, p.Absolute = m, n, n
+					break
+				}
+			}
+		}
+	}
 	if loc != nil {
 		p.Series = true
 		head, tail := s[:loc[0]], s[loc[1]:]
@@ -180,6 +197,10 @@ func ParsePath(path string) Parsed {
 	d := ParseName(dirName)
 
 	if p.Series {
+		if p.Absolute > 0 && dirSeason > 0 {
+			// "Staffel 2/E05.mkv": die Nummer zählt innerhalb der Staffel.
+			p.Season, p.Absolute = dirSeason, 0
+		}
 		if p.Title == "" {
 			p.Title = d.Title
 			if p.Year == 0 {

@@ -739,7 +739,7 @@ function updateCounts() {
 function focusKey() {
   const a = document.activeElement, row = a?.closest?.(".item");
   if (!row) return null;
-  const cls = [...a.classList].find(c => /^(sel|tog|search|manual|q|qy|qs|m-\w+)$/.test(c));
+  const cls = [...a.classList].find(c => /^(sel|tog|search|manual|q|qy|qs|ps|pe|m-\w+)$/.test(c));
   return { id: row.dataset.id, sel: a.dataset.cand ? `[data-cand="${a.dataset.cand}"]` : cls ? "." + cls : null };
 }
 function restoreFocus(k) {
@@ -765,7 +765,68 @@ function render(focus) {
   $("#items").innerHTML = shown.map(itemHTML).join("");
   updateCounts();
   restoreFocus(fk);
+  fillPickers();
 }
+
+// Staffel- und Folgenlisten aus TMDB, einmal geladen und dann gemerkt.
+const tvCache = {};
+const tvGet = path => (tvCache[path] ||= api("GET", path).catch(e => { delete tvCache[path]; throw e; }));
+
+async function fillPickers() {
+  for (const box of document.querySelectorAll(".epick")) {
+    const row = box.closest(".item"), it = state.items.find(i => i.id === +row.dataset.id);
+    const ps = $(".ps", box);
+    if (!it || ps.dataset.ready) continue;
+    try {
+      const seasons = await tvGet(`/api/tv/${box.dataset.tv}/seasons`);
+      ps.innerHTML = `<option value="">Staffel wählen</option>` + seasons.map(s =>
+        `<option value="${s.number}" ${s.number === it.info.season && it.info.episode ? "selected" : ""}>${esc(s.name || "Staffel " + s.number)} (${s.episodes} Folgen)</option>`).join("");
+      ps.dataset.ready = "1";
+      if (ps.value) await fillEpisodes(box, it);
+    } catch (e) {
+      ps.innerHTML = `<option value="">nicht verfügbar</option>`;
+    }
+  }
+}
+
+async function fillEpisodes(box, it) {
+  const ps = $(".ps", box), pe = $(".pe", box);
+  pe.disabled = true;
+  if (ps.value === "") {
+    pe.innerHTML = `<option value="">erst Staffel wählen</option>`;
+    return;
+  }
+  pe.innerHTML = `<option value="">lädt …</option>`;
+  try {
+    const eps = await tvGet(`/api/tv/${box.dataset.tv}/season/${ps.value}`);
+    const cur = +ps.value === it.info.season ? it.info.episode : 0;
+    pe.innerHTML = `<option value="">Folge wählen</option>` + eps.map(e =>
+      `<option value="${e.number}" ${e.number === cur ? "selected" : ""}>${e.number}. ${esc(e.name)}</option>`).join("");
+    pe.disabled = false;
+  } catch (e) {
+    pe.innerHTML = `<option value="">nicht verfügbar</option>`;
+  }
+}
+
+$("#items").addEventListener("change", async e => {
+  const box = e.target.closest(".epick");
+  if (!box) return;
+  const row = box.closest(".item"), id = +row.dataset.id, it = state.items.find(i => i.id === id);
+  if (e.target.classList.contains("ps")) return fillEpisodes(box, it);
+  if (!e.target.classList.contains("pe") || !e.target.value) return;
+  const fk = focusKey();
+  try {
+    bear("sniff", "Moment …");
+    const r = await api("POST", "/api/items/" + id, { pick: { season: +$(".ps", box).value, episode: +e.target.value } });
+    const now = (r.items || []).find(i => i.id === id);
+    if (selectable(now)) state.sel.add(id);
+    setItems(r, false);
+    restoreFocus(fk);
+    bear("happy", `Neues Ziel: ${now?.rel_target || "?"}`, 1500);
+  } catch (err) {
+    bear("confused", err.message, 3000);
+  }
+});
 
 $("#summary").addEventListener("click", e => {
   const b = e.target.closest("[data-filter]");
@@ -830,6 +891,12 @@ function editHTML(it) {
       ${f("qy", "Jahr", it.parsed.year || "", 'inputmode="numeric"', "narrow")}
       <div class="field mid"><label for="qs-${id}">Art</label><select id="qs-${id}" class="qs"><option value="0" ${i.series ? "" : "selected"}>Film</option><option value="1" ${i.series ? "selected" : ""}>Serie</option></select></div>
       <button type="button" class="btn small primary search">Suchen</button>
+    </div>` : ""}
+    ${i.series && i.tmdb_id && state.online ? `
+    <h3 class="label">Staffel und Folge aus TMDB</h3>
+    <div class="row epick" data-tv="${i.tmdb_id}" style="margin:0 0 14px">
+      <div class="field"><label for="ps-${id}">Staffel</label><select id="ps-${id}" class="ps"><option value="">lädt …</option></select></div>
+      <div class="field"><label for="pe-${id}">Folge</label><select id="pe-${id}" class="pe" disabled><option value="">erst Staffel wählen</option></select></div>
     </div>` : ""}
     <h3 class="label">Oder von Hand</h3>
     <div class="row">

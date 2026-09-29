@@ -79,6 +79,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/scan", s.scan)
 	mux.HandleFunc("GET /api/items", s.getItems)
 	mux.HandleFunc("POST /api/items/{id}", s.updateItem)
+	mux.HandleFunc("GET /api/tv/{id}/seasons", s.tvSeasons)
+	mux.HandleFunc("GET /api/tv/{id}/season/{season}", s.tvEpisodes)
 	mux.HandleFunc("POST /api/apply", s.apply)
 	mux.HandleFunc("GET /api/history", s.history)
 	mux.HandleFunc("POST /api/undo", s.undo)
@@ -293,6 +295,11 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 		Year        int        `json:"year"`
 		Series      *bool      `json:"series"`
 		Info        *MediaInfo `json:"info"`
+		// Staffel und Folge aus der TMDB-Auswahl, der Folgentitel kommt von TMDB.
+		Pick *struct {
+			Season  int `json:"season"`
+			Episode int `json:"episode"`
+		} `json:"pick"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -313,6 +320,18 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	switch {
+	case req.Pick != nil:
+		if !it.Info.Series || req.Pick.Season < 0 || req.Pick.Episode < 1 {
+			writeErr(w, http.StatusBadRequest, errors.New("ungültige Staffel oder Folge"))
+			return
+		}
+		it.Info.Season, it.Info.Episode, it.Info.EpisodeEnd, it.Info.EpisodeTitle = req.Pick.Season, req.Pick.Episode, 0, ""
+		it.Message = ""
+		if it.Info.TMDBID > 0 && s.db.Enabled() {
+			if name, err := s.db.EpisodeTitle(ctx, it.Info.TMDBID, req.Pick.Season, req.Pick.Episode); err == nil {
+				it.Info.EpisodeTitle = name
+			}
+		}
 	case req.Info != nil:
 		it.Info = *req.Info
 		applyMedia(&it.Info, it.Media)
@@ -505,4 +524,49 @@ func (s *Server) dirs(w http.ResponseWriter, r *http.Request) {
 		parent = ""
 	}
 	writeJSON(w, map[string]any{"path": p, "parent": parent, "dirs": dirs, "sep": string(filepath.Separator)})
+}
+
+// tvSeasons liefert die Staffeln einer Serie für die Auswahl im Anpassen-Feld.
+func (s *Server) tvSeasons(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id <= 0 {
+		writeErr(w, http.StatusBadRequest, errors.New("ungültige Serien-ID"))
+		return
+	}
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	if !db.Enabled() {
+		writeErr(w, http.StatusBadRequest, errors.New("dafür braucht der Bär einen TMDB-Key"))
+		return
+	}
+	seasons, err := db.Seasons(r.Context(), id)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, seasons)
+}
+
+// tvEpisodes liefert die Folgen einer Staffel samt Titel.
+func (s *Server) tvEpisodes(w http.ResponseWriter, r *http.Request) {
+	id, err1 := strconv.Atoi(r.PathValue("id"))
+	season, err2 := strconv.Atoi(r.PathValue("season"))
+	if err1 != nil || err2 != nil || id <= 0 || season < 0 {
+		writeErr(w, http.StatusBadRequest, errors.New("ungültige Staffel"))
+		return
+	}
+	s.mu.Lock()
+	db := s.db
+	s.mu.Unlock()
+	if !db.Enabled() {
+		writeErr(w, http.StatusBadRequest, errors.New("dafür braucht der Bär einen TMDB-Key"))
+		return
+	}
+	eps, err := db.SeasonEpisodes(r.Context(), id, season)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, eps)
 }

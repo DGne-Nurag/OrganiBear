@@ -28,6 +28,18 @@ func fakeTMDB(t *testing.T) *TMDB {
 		switch {
 		case r.URL.Path == "/search/movie" && strings.Contains(q, "matrix"):
 			out = map[string]any{"results": []map[string]any{{"id": 603, "title": "Matrix", "original_title": "The Matrix", "release_date": "1999-03-30"}}}
+		case r.URL.Path == "/search/tv" && strings.Contains(q, "one piece"):
+			out = map[string]any{"results": []map[string]any{{"id": 37854, "name": "One Piece", "first_air_date": "1999-10-20"}}}
+		case r.URL.Path == "/tv/37854":
+			// Specials zählen nicht, Staffel 1 hat 61 Folgen, Staffel 2 hat 16.
+			out = map[string]any{"id": 37854, "name": "One Piece", "seasons": []map[string]any{
+				{"season_number": 0, "name": "Specials", "episode_count": 40},
+				{"season_number": 2, "name": "Staffel 2", "episode_count": 16},
+				{"season_number": 1, "name": "Staffel 1", "episode_count": 61}}}
+		case r.URL.Path == "/tv/37854/season/2":
+			out = map[string]any{"episodes": []map[string]any{{"episode_number": 1, "name": "Abenteuer in Grand Line"}, {"episode_number": 2, "name": "Laboon"}}}
+		case r.URL.Path == "/tv/37854/season/2/episode/2":
+			out = map[string]any{"name": "Laboon"}
 		case r.URL.Path == "/search/tv" && strings.Contains(q, "breaking"):
 			out = map[string]any{"results": []map[string]any{{"id": 1396, "name": "Breaking Bad", "first_air_date": "2008-01-20"}}}
 		case r.URL.Path == "/tv/1396/season/1/episode/3":
@@ -305,6 +317,40 @@ func TestMultiPartMovie(t *testing.T) {
 		}
 		if len(it.Companions) != 1 || !strings.HasSuffix(it.Companions[0].Target, "Titanic (1997) - part"+n+".srt") {
 			t.Errorf("Untertitel zu Teil %s: %+v", n, it.Companions)
+		}
+	}
+}
+
+func TestAbsoluteEpisodes(t *testing.T) {
+	tmp := t.TempDir()
+	src, dst := filepath.Join(tmp, "in"), filepath.Join(tmp, "out")
+	touch(t, src, "One.Piece.E0063.1080p.mkv", "One.Piece.E0200.1080p.mkv")
+	cfg := DefaultConfig()
+	cfg.SourceDir, cfg.TargetDir, cfg.TMDBKey = src, dst, "testkey"
+	items, err := Scan(context.Background(), cfg, fakeTMDB(t))
+	if err != nil || len(items) != 2 {
+		t.Fatalf("%v %d", err, len(items))
+	}
+	ok, far := items[0], items[1]
+	// 63 = 61 Folgen aus Staffel 1, dann Staffel 2 Folge 2.
+	if ok.Info.Season != 2 || ok.Info.Episode != 2 || ok.Info.EpisodeTitle != "Laboon" || ok.Status != StatusReady || !strings.Contains(ok.Message, "fortlaufend") {
+		t.Errorf("E0063: %+v %s %q", ok.Info, ok.Status, ok.Message)
+	}
+	if want := filepath.FromSlash("Serien/One Piece (1999)/Staffel 02/One Piece - S02E02 - Laboon.mkv"); ok.RelTarget != want {
+		t.Errorf("Ziel %q", ok.RelTarget)
+	}
+	// 200 gibt es laut TMDB (noch) nicht: bitte selbst wählen.
+	if far.Status != StatusUnmatched || far.Info.Season != 0 || !strings.Contains(far.Message, "Staffel und Folge wählen") {
+		t.Errorf("E0200: %+v %s %q", far.Info, far.Status, far.Message)
+	}
+}
+
+func TestAbsoluteEpisodeMath(t *testing.T) {
+	seasons := []Season{{Number: 1, Episodes: 10}, {Number: 0, Episodes: 5}, {Number: 2, Episodes: 0}, {Number: 3, Episodes: 4}}
+	for abs, want := range map[int][2]int{1: {1, 1}, 10: {1, 10}, 11: {3, 1}, 14: {3, 4}, 15: {0, 0}, 0: {0, 0}} {
+		s, e, _ := absoluteEpisode(seasons, abs)
+		if s != want[0] || e != want[1] {
+			t.Errorf("%d: S%d E%d", abs, s, e)
 		}
 	}
 }
