@@ -15,6 +15,8 @@ in eine ordentliche Bibliothek.
 - **Ein einziges Programm.** Starten, der Browser öffnet sich, fertig. Keine Installation, keine Abhängigkeiten.
 - **Versteht viele Namensmuster:** `S01E02`, `1x02`, `Staffel 1 Folge 2`, Doppelfolgen (`S02E01E02`), Release-Gruppen, Qualitätsangaben, Jahreszahlen im Titel (`Blade Runner 2049 (2017)`), Ordnernamen wie `Serie/Staffel 2/05.mkv`, mehrteilige Filme (`Titanic.1997.CD1.avi` wird zu `Titanic (1997) - part1.avi`) und fortlaufende Folgennummern wie bei Anime (`One.Piece.E1071.mkv` wird über TMDB in Staffel und Folge umgerechnet).
 - **Metadaten von TMDB:** richtiger Titel in deiner Sprache, Jahr und Folgentitel. Bei Unsicherheit wählst du aus den Treffern, suchst selbst oder trägst die Daten von Hand ein. Bei Serien wählst du Staffel und Folge aus der TMDB-Liste, der Folgentitel kommt dann mit. Ohne API-Key arbeitet er nur mit den Dateinamen.
+- **IMDb- und TMDB-IDs:** Steht eine ID im Namen (`Matrix (1999) {imdb-tt0133093}`, `[tmdbid=603]`) oder in einer vorhandenen NFO, nimmt er genau diesen Titel. Im Suchfeld unter „Anpassen“ geht auch eine IMDb-ID wie `tt0133093`.
+- **TheTVDB als zweite Quelle** für Serien, die TMDB nicht kennt, mit wahlweise DVD-Reihenfolge. Die Vorschau zeigt bei jedem Treffer, woher die Daten stammen.
 - **Eigene Namensvorlagen** für Filme und Serien, mit Live-Vorschau.
 - **Dateiregeln:** Du legst fest, welche Dateiendungen Videos und welche Begleitdateien sind (Untertitel, NFO, Bilder …) und ob sie verschoben, kopiert oder ignoriert werden. Begleitdateien bekommen den neuen Namen ihres Videos (`Film (2010).de.srt`).
 - **Erst Vorschau, dann Aktion.** Nichts wird bewegt, bevor du bestätigst. Vorhandene Dateien werden nie überschrieben.
@@ -84,6 +86,23 @@ menschliche Übersetzungen gehen vor.
 - Vorhandene Untertitel werden nie überschrieben, „Rückgängig“ entfernt die geladenen wieder.
 - Laut den Nutzungsbedingungen von OpenSubtitles ist eine **kommerzielle Nutzung nicht erlaubt**.
 
+## IMDb-IDs und TheTVDB
+
+**IMDb-IDs** (`tt` und 7 bis 9 Ziffern) erkennt der Bär im Datei- oder Ordnernamen, in einer NFO neben dem Video
+(`<Video>.nfo`, `movie.nfo`, bei Serien `tvshow.nfo`) und im Suchfeld. Aufgelöst werden sie über die
+`/find`-Schnittstelle von TMDB. IMDb selbst wird nie abgefragt, denn IMDb erlaubt weder das Auslesen der Webseite
+noch bietet es eine freie Schnittstelle. Eine IMDb-ID einer einzelnen Folge liefert Serie, Staffel und Folge.
+
+**TheTVDB** schaltest du unter **Einstellungen › TheTVDB als zweite Quelle** ein. Findet TMDB zu einer Serie nichts,
+sucht der Bär dort weiter, holt Folgentitel und rechnet fortlaufende Folgennummern um. Als Folgenreihenfolge gibt es
+„wie ausgestrahlt“ und „wie auf DVD/Blu-ray“. Kennt TMDB dieselbe Serie über ihre TheTVDB-ID, bekommt der Eintrag
+auch die TMDB-ID, und NFO-Dateien und Bilder klappen wie gewohnt. Treffer von TheTVDB tragen in der Vorschau den
+Hinweis „Daten: TheTVDB“ mit einem Link auf die Serie bei TheTVDB.com.
+
+Den TheTVDB-Key bringen die offiziellen Releases mit (Lizenzmodell „Negotiated Contract“: kostenlos für
+Projekte mit weniger als 50.000 US-Dollar Umsatz im Jahr, mit Namensnennung und Link auf TheTVDB.com). Selbst gebaute
+Programme ohne Key blenden die Einstellung aus. Neue Platzhalter: `{imdb_id}` und `{tvdb_id}`.
+
 ## Sicherheit und Barrierefreiheit
 
 - Das Webinterface lauscht nur auf dem eigenen Rechner (127.0.0.1) und lässt sich nicht ins Netzwerk öffnen.
@@ -112,6 +131,8 @@ samt Klammern und Strichen.
 | `{languages}` | Sprachen der Tonspuren, z. B. `DE-EN` |
 | `{part}` | Teil eines mehrteiligen Films, z. B. `part1`. Fehlt er in der Vorlage, hängt der Bär ` - part1` an den Dateinamen |
 | `{tmdb_id}` | TMDB-ID |
+| `{imdb_id}` | IMDb-ID, z. B. `tt0133093` |
+| `{tvdb_id}` | TheTVDB-ID |
 | `{first_letter}` | Anfangsbuchstabe ohne Artikel, z. B. `M` für „The Matrix“ |
 
 Standard:
@@ -135,7 +156,8 @@ Tests: `go test ./...`
 
 Selbst gebaute Programme enthalten keinen OpenSubtitles-Key, die Untertitel-Funktion ist dann ausgeblendet.
 Wer eine eigene Version verteilt, legt bei OpenSubtitles einen eigenen Consumer an und baut mit
-`-ldflags "-X main.openSubtitlesKey=<Key>"`. Den Key nie ins Repository schreiben.
+`-ldflags "-X main.openSubtitlesKey=<Key>"`. Den Key nie ins Repository schreiben. Genauso fehlt der TheTVDB-Key
+(`-X main.tvdbKey=<Key>`, eigener Key unter [thetvdb.com/api-information](https://thetvdb.com/api-information)).
 
 CI prüft bei jedem Push und zusätzlich jeden Montag:
 
@@ -154,7 +176,8 @@ Den Screenshot oben erzeugt `cd e2e && npm run screenshot` neu.
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 Dieses Produkt nutzt die TMDB-API, wird aber von TMDB weder unterstützt noch zertifiziert.
 
-Der Hinweis und das Logo stehen auch im Programm unten im Bereich „Über OrganiBear“.
+Der Hinweis und das Logo stehen auch im Programm unten im Bereich „Über OrganiBear“, dort ebenso die Hinweise auf
+[TheTVDB.com](https://thetvdb.com) und [OpenSubtitles.com](https://www.opensubtitles.com).
 Die kostenlose TMDB-API ist nur für nicht-kommerzielle Nutzung gedacht; jeder Nutzer trägt seinen eigenen API-Key ein.
 
 ## Release veröffentlichen
@@ -170,6 +193,8 @@ git push origin v0.1.0
 
 Damit das Release Untertitel laden kann, muss vorher das Repository-Secret `OPENSUBTITLES_API_KEY` gesetzt sein
 (Settings › Secrets and variables › Actions). Den Key gibt es unter „API consumers“ auf opensubtitles.com.
+Für TheTVDB kommt das Secret `THETVDB_API_KEY` dazu (Key unter thetvdb.com › Dashboard › API Keys).
+Fehlt eins, baut der Workflow trotzdem und warnt, die Funktion ist im Release dann ausgeblendet.
 Nach dem ersten Release bittet OpenSubtitles darum, die App mit ihrem User-Agent (`OrganiBear v0.1.0`) zu melden.
 
 ## Lizenz

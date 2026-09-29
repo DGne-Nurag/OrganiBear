@@ -145,6 +145,7 @@ button.btn:disabled, button.btn[aria-disabled=true] { opacity: .5; cursor: defau
 .arrow { color: var(--honey-ink); }
 .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; align-items: center; }
 .tag { padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+a.tag { text-decoration: underline; text-underline-offset: 2px; }
 .msg { color: var(--muted); }
 .side { display: flex; flex-direction: column; gap: 6px; align-items: end; }
 .edit { grid-column: 3 / -1; background: var(--bg); border-radius: 14px; padding: 14px; }
@@ -416,6 +417,15 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
       </div>
     </div>
 
+    <div class="card" id="tvdb-card" hidden>
+      <h3 class="label">TheTVDB als zweite Quelle</h3>
+      <label class="check"><input type="checkbox" id="t-on" aria-describedby="t-hint"> Serien bei TheTVDB suchen, wenn TMDB nichts findet</label>
+      <p class="hint" id="t-hint">Hilft bei Anime und Serien mit DVD- oder fortlaufender Zählung. Findet TMDB dieselbe Serie über ihre TheTVDB-ID, gibt es trotzdem NFO und Bilder.</p>
+      <div class="row">
+        <div class="field mid" style="flex-basis:240px"><label for="t-order">Folgenreihenfolge</label><select id="t-order"><option value="default">Wie ausgestrahlt</option><option value="dvd">Wie auf DVD/Blu-ray</option></select></div>
+      </div>
+    </div>
+
     <div class="row" style="justify-content:end">
       <span class="hint" id="cfgpath"></span>
       <button type="button" class="btn primary" id="save">Speichern</button>
@@ -431,6 +441,7 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
     <h2 id="h-about" class="label">Über OrganiBear</h2>
     <a class="tmdb" href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer"><img src="tmdb.svg" alt="The Movie Database (TMDB), öffnet neues Fenster" width="137" height="18"></a>
     <p>Titel, Jahreszahlen, Folgentitel und Poster stammen von The Movie Database (TMDB).</p>
+    <p>Ergänzende Seriendaten stammen von <a href="https://thetvdb.com" target="_blank" rel="noopener noreferrer">TheTVDB.com (öffnet neues Fenster)</a>, wenn TMDB eine Serie nicht kennt.</p>
     <p>Nachgeladene Untertitel stammen von <a href="https://www.opensubtitles.com" target="_blank" rel="noopener noreferrer">OpenSubtitles.com (öffnet neues Fenster)</a>.</p>
     <p lang="en">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
     <p>Dieses Produkt nutzt die TMDB-API, wird aber von TMDB weder unterstützt noch zertifiziert.</p>
@@ -545,6 +556,10 @@ async function loadConfig() {
   $("#s-form").hidden = !data.subtitles_available;
   $("#s-user").value = st.user || "";
   $("#s-password").value = st.password || "";
+  const tv = c.thetvdb || {};
+  $("#tvdb-card").hidden = !data.tvdb_available;
+  $("#t-on").checked = !!tv.enabled;
+  $("#t-order").value = tv.order === "dvd" ? "dvd" : "default";
   preview();
 }
 
@@ -673,6 +688,7 @@ $("#save").onclick = async () => {
     ignore_patterns: $("#ignore").value.split(",").map(s => s.trim()).filter(Boolean),
     extras: readExtras(),
     subtitles: readSubtitles(),
+    thetvdb: { enabled: $("#t-on").checked, order: $("#t-order").value },
   };
   try {
     const r = await api("PUT", "/api/config", cfg);
@@ -740,7 +756,7 @@ function focusKey() {
   const a = document.activeElement, row = a?.closest?.(".item");
   if (!row) return null;
   const cls = [...a.classList].find(c => /^(sel|tog|search|manual|q|qy|qs|ps|pe|m-\w+)$/.test(c));
-  return { id: row.dataset.id, sel: a.dataset.cand ? `[data-cand="${a.dataset.cand}"]` : cls ? "." + cls : null };
+  return { id: row.dataset.id, sel: a.dataset.cand ? `[data-cand="${a.dataset.cand}"][data-src="${a.dataset.src}"]` : cls ? "." + cls : null };
 }
 function restoreFocus(k) {
   if (!k) return;
@@ -836,9 +852,13 @@ $("#summary").addEventListener("click", e => {
   $(`#summary [data-filter="${b.dataset.filter}"]`)?.focus();
 });
 
+// Der gewählte Treffer: TMDB- und TheTVDB-IDs können gleich sein, darum zählt auch die Quelle.
+const isChosen = (c, i) => c.source === "tvdb" ? i.source === "tvdb" && c.id === i.tvdb_id : i.source !== "tvdb" && c.id === i.tmdb_id;
+const SOURCE = { tmdb: "TMDB", tvdb: "TheTVDB" };
+
 function itemHTML(it) {
   const info = it.info;
-  const cand = it.candidates?.find(c => c.id === info.tmdb_id);
+  const cand = it.candidates?.find(c => isChosen(c, info));
   const poster = cand?.poster ? `<img class="poster" src="${esc(cand.poster)}" alt="">` : `<div class="poster" aria-hidden="true">${info.series ? "📺" : "🎬"}</div>`;
   const n = it.companions?.length || 0;
   const comps = n ? `<span class="tag s-neutral">+${n} Begleitdatei${n > 1 ? "en" : ""}</span>` : "";
@@ -851,6 +871,9 @@ function itemHTML(it) {
   const quality = [info.resolution, info.hdr, info.vcodec, info.audio, info.languages].filter(Boolean).join(" · ");
   const media = it.media && quality ? `<span class="tag s-neutral"><span class="sr-only">Aus der Datei: </span>${esc(quality)}</span>` : "";
   const better = it.better ? `<span class="tag s-ready">bessere Version</span>` : "";
+  const source = it.matched && SOURCE[info.source] ? (info.source === "tvdb"
+    ? `<a class="tag s-neutral" href="https://thetvdb.com/dereferrer/series/${info.tvdb_id}" target="_blank" rel="noopener noreferrer">Daten: TheTVDB<span class="sr-only"> (öffnet neues Fenster)</span></a>`
+    : `<span class="tag s-neutral">Daten: TMDB</span>`) : "";
   const locked = it.status === "done" || it.status === "same";
   const open = state.open === it.id && !locked;
   return `
@@ -863,7 +886,7 @@ function itemHTML(it) {
       <div class="meta" id="st-${it.id}">
         <span class="tag s-${it.status}">${STATUS[it.status]}</span>
         <span class="tag s-neutral">${info.series ? "Serie" : "Film"}</span>${info.part && !info.series ? `<span class="tag s-neutral">Teil ${info.part}</span>` : ""}
-        ${better}${media}${comps}${extras}${subs}${action}
+        ${source}${better}${media}${comps}${extras}${subs}${action}
         ${it.message ? `<span class="msg">${esc(it.message)}</span>` : ""}
       </div>
     </div>
@@ -875,9 +898,9 @@ function itemHTML(it) {
 function editHTML(it) {
   const i = it.info, id = it.id;
   const cands = (it.candidates || []).map(c => `
-    <button type="button" class="cand" data-cand="${c.id}" aria-pressed="${c.id === i.tmdb_id}" title="${esc(c.overview)}">
+    <button type="button" class="cand" data-cand="${c.id}" data-src="${c.source === "tvdb" ? "tvdb" : ""}" aria-pressed="${isChosen(c, i)}" title="${esc(c.overview)}">
       ${c.poster ? `<img src="${esc(c.poster)}" alt="">` : `<div class="ph" aria-hidden="true">🐻</div>`}
-      <b>${esc(c.title)}</b><small>${c.year || "ohne Jahr"}</small>
+      <b>${esc(c.title)}</b><small>${c.year || "ohne Jahr"}${c.source === "tvdb" ? " · TheTVDB" : ""}</small>
     </button>`).join("");
   const f = (cls, label, value, extra = "", size = "") =>
     `<div class="field ${size}"><label for="${cls}-${id}">${label}</label><input id="${cls}-${id}" class="${cls}" value="${esc(value)}" ${extra}></div>`;
@@ -887,11 +910,12 @@ function editHTML(it) {
     ${state.online ? `
     <h3 class="label">Selbst suchen</h3>
     <div class="row" style="margin:0 0 14px">
-      ${f("q", "Suchbegriff", it.parsed.title)}
+      ${f("q", "Suchbegriff oder IMDb-ID", it.parsed.title, 'aria-describedby="q-hint-' + id + '"')}
       ${f("qy", "Jahr", it.parsed.year || "", 'inputmode="numeric"', "narrow")}
       <div class="field mid"><label for="qs-${id}">Art</label><select id="qs-${id}" class="qs"><option value="0" ${i.series ? "" : "selected"}>Film</option><option value="1" ${i.series ? "selected" : ""}>Serie</option></select></div>
       <button type="button" class="btn small primary search">Suchen</button>
-    </div>` : ""}
+    </div>
+    <p class="hint" id="q-hint-${id}" style="margin-top:-8px">Eine IMDb-ID wie <code>tt0133093</code> findet den Titel direkt.</p>` : ""}
     ${i.series && i.tmdb_id && state.online ? `
     <h3 class="label">Staffel und Folge aus TMDB</h3>
     <div class="row epick" data-tv="${i.tmdb_id}" style="margin:0 0 14px">
@@ -941,7 +965,7 @@ $("#items").addEventListener("click", async e => {
   }
   let body;
   const cand = e.target.closest("[data-cand]");
-  if (cand) body = { candidate_id: +cand.dataset.cand };
+  if (cand) body = { candidate_id: +cand.dataset.cand, source: cand.dataset.src };
   if (e.target.closest(".search")) body = { query: $(".q", row).value.trim(), year: num(".qy"), series: $(".qs", row).value === "1" };
   if (e.target.closest(".manual")) body = { info: { ...it.info, title: $(".m-title", row).value.trim(), year: num(".m-year"), season: it.info.series ? num(".m-season") : 0, episode: it.info.series ? num(".m-episode") : 0, episode_end: 0, episode_title: it.info.series ? $(".m-eptitle", row).value.trim() : "", tmdb_id: 0 } };
   if (!body) return;

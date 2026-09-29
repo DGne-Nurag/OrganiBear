@@ -26,11 +26,14 @@ type MediaInfo struct {
 	Languages     string `json:"languages,omitempty"` // Tonspur-Sprachen, z. B. "DE-EN"
 	Part          int    `json:"part,omitempty"`      // Teil eines mehrteiligen Films
 	Absolute      int    `json:"absolute,omitempty"`  // fortlaufende Folgennummer, falls so im Namen
+	IMDBID        string `json:"imdb_id,omitempty"`
+	TVDBID        int    `json:"tvdb_id,omitempty"`
+	Source        string `json:"source,omitempty"` // woher die Daten stammen: "tmdb" oder "tvdb"
 	TMDBID        int    `json:"tmdb_id,omitempty"`
 }
 
 // Placeholders listet alle Platzhalter für die Hilfe im Webinterface.
-var Placeholders = []string{"title", "original_title", "year", "season", "episode", "episode_title", "resolution", "vcodec", "hdr", "audio", "languages", "part", "tmdb_id", "first_letter"}
+var Placeholders = []string{"title", "original_title", "year", "season", "episode", "episode_title", "resolution", "vcodec", "hdr", "audio", "languages", "part", "tmdb_id", "imdb_id", "tvdb_id", "first_letter"}
 
 var rePlaceholder = regexp.MustCompile(`\{([a-z_]+)(?::(\d+))?\}`)
 
@@ -107,6 +110,10 @@ func RenderTemplate(tmpl string, info MediaInfo) string {
 			return partName(info.Part)
 		case "tmdb_id":
 			return pad(info.TMDBID, width)
+		case "imdb_id":
+			return sanitize(info.IMDBID)
+		case "tvdb_id":
+			return pad(info.TVDBID, width)
 		case "first_letter":
 			for _, r := range sortTitle(info.Title) {
 				if unicode.IsLetter(r) {

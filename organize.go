@@ -8,7 +8,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -155,6 +157,9 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 		go func(it *Item) {
 			defer func() { <-sem; wg.Done() }()
 			it.Media = ProbeFile(it.Source)
+			if it.Parsed.IMDBID == "" && it.Parsed.TMDBID == 0 {
+				it.Parsed.IMDBID, it.Parsed.TMDBID = nfoIDs(it.Source, it.Parsed.Series)
+			}
 			if st, err := os.Stat(it.Source); err == nil {
 				it.Size = st.Size()
 			}
@@ -167,11 +172,54 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 	return items, nil
 }
 
+var (
+	reNFOTMDB = regexp.MustCompile(`(?is)<uniqueid[^>]*type="tmdb"[^>]*>\s*(\d{1,9})\s*</uniqueid>|themoviedb\.org/(?:movie|tv)/(\d{1,9})`)
+	reNFOIMDB = regexp.MustCompile(`\b(tt\d{7,9})\b`)
+)
+
+// nfoIDs sucht IDs in einer NFO, die schon neben der Datei liegt (z. B. von
+// Kodi oder Jellyfin): erst „<name>.nfo“, dann movie.nfo bzw. tvshow.nfo im
+// Ordner der Serie. Bei Folgen zählt nur tvshow.nfo, denn die IMDb-ID einer
+// Folgen-NFO beschreibt die Folge, nicht die Serie.
+func nfoIDs(file string, series bool) (imdb string, tmdb int) {
+	dir := filepath.Dir(file)
+	var paths []string
+	if series {
+		paths = []string{filepath.Join(dir, "tvshow.nfo"), filepath.Join(filepath.Dir(dir), "tvshow.nfo")}
+	} else {
+		paths = []string{strings.TrimSuffix(file, filepath.Ext(file)) + ".nfo", filepath.Join(dir, "movie.nfo")}
+	}
+	for _, p := range paths {
+		st, err := os.Stat(p)
+		if err != nil || !st.Mode().IsRegular() || st.Size() > 1<<20 {
+			continue
+		}
+		data, err := os.ReadFile(p) // #nosec G304 -- NFO neben einer Datei, die der Nutzer einsortieren will
+		if err != nil {
+			continue
+		}
+		if m := reNFOTMDB.FindSubmatch(data); m != nil {
+			id := m[1]
+			if len(id) == 0 {
+				id = m[2]
+			}
+			tmdb, _ = strconv.Atoi(string(id))
+		}
+		if m := reNFOIMDB.FindSubmatch(data); m != nil {
+			imdb = string(m[1])
+		}
+		if imdb != "" || tmdb > 0 {
+			return imdb, tmdb
+		}
+	}
+	return "", 0
+}
+
 func infoFromParsed(p Parsed) MediaInfo {
 	return MediaInfo{
 		Title: p.Title, Year: p.Year, Series: p.Series, Season: p.Season,
 		Episode: p.Episode, EpisodeEnd: p.EpisodeEnd, EpisodeTitle: p.EpisodeTitle,
-		Resolution: p.Resolution, Part: p.Part, Absolute: p.Absolute,
+		Resolution: p.Resolution, Part: p.Part, Absolute: p.Absolute, IMDBID: p.IMDBID,
 	}
 }
 
@@ -186,18 +234,54 @@ func applyMedia(i *MediaInfo, m *Media) {
 	i.VCodec, i.HDR, i.Audio, i.Languages = m.VCodec, m.HDR, m.MainAudio().String(), m.Languages()
 }
 
-// Lookup sucht Treffer in der Datenbank und übernimmt den besten.
+// Lookup sucht Treffer in der Datenbank und übernimmt den besten. Steht eine
+// IMDb- oder TMDB-ID im Namen (oder in einer NFO), geht das vor der Titelsuche.
+// Findet TMDB zu einer Serie nichts, fragt der Bär TheTVDB.
 func Lookup(ctx context.Context, db *TMDB, it *Item, query string, year int) {
 	it.Info = infoFromParsed(it.Parsed)
 	applyMedia(&it.Info, it.Media)
 	it.Candidates, it.Matched, it.Message = nil, false, ""
-	if !db.Enabled() || strings.TrimSpace(query) == "" {
+	query = strings.TrimSpace(query)
+	if query == "" {
 		return
 	}
-	cands, err := db.Search(ctx, it.Parsed.Series, query, year)
-	if err != nil {
-		it.Message = err.Error()
-		return
+	// IDs aus dem Namen gelten nur für die automatische Suche, eine
+	// eingetippte IMDb-ID im Suchfeld immer.
+	imdb, tmdbID := "", 0
+	if reIMDBOnly.MatchString(query) {
+		imdb = strings.ToLower(query)
+	} else if query == it.Parsed.Title {
+		imdb, tmdbID = it.Parsed.IMDBID, it.Parsed.TMDBID
+	}
+	var cands []Candidate
+	if db.Enabled() {
+		switch {
+		case tmdbID > 0:
+			if c, err := db.Details(ctx, it.Info.Series, tmdbID); err == nil {
+				cands = []Candidate{c}
+			}
+		case imdb != "":
+			if f, err := db.Find(ctx, "imdb_id", imdb); err == nil {
+				it.Info.Series, it.Info.IMDBID = f.Series, imdb
+				if f.Season > 0 || f.Episode > 0 {
+					it.Info.Season, it.Info.Episode, it.Info.EpisodeEnd, it.Info.Absolute = f.Season, f.Episode, 0, 0
+				}
+				cands = []Candidate{f.Candidate}
+			}
+		}
+		if cands == nil && query != imdb {
+			var err error
+			if cands, err = db.Search(ctx, it.Info.Series, query, year); err != nil {
+				it.Message = err.Error()
+			}
+		}
+	}
+	if len(cands) == 0 && it.Info.Series && db != nil && db.TVDB.Enabled() && imdb != query {
+		tv, err := db.TVDB.Search(ctx, query, year)
+		if err != nil && it.Message == "" {
+			it.Message = err.Error()
+		}
+		cands = tv
 	}
 	it.Candidates = cands
 	if len(cands) > 0 {
@@ -205,11 +289,27 @@ func Lookup(ctx context.Context, db *TMDB, it *Item, query string, year int) {
 	}
 }
 
+var reIMDBOnly = regexp.MustCompile(`(?i)^tt\d{7,9}$`)
+
 // ApplyCandidate übernimmt einen Datenbanktreffer in die Infos des Eintrags.
 func ApplyCandidate(ctx context.Context, db *TMDB, it *Item, c Candidate) {
-	it.Info.Title, it.Info.OriginalTitle, it.Info.Year, it.Info.TMDBID = c.Title, c.OriginalTitle, c.Year, c.ID
+	it.Info.Title, it.Info.OriginalTitle, it.Info.Year = c.Title, c.OriginalTitle, c.Year
 	it.Matched = true
 	it.Message = ""
+	if c.Source == "tvdb" {
+		applyTVDB(ctx, db, it, c)
+		return
+	}
+	it.Info.TMDBID, it.Info.TVDBID, it.Info.Source = c.ID, 0, "tmdb"
+	if db.Enabled() {
+		// IMDb- und TheTVDB-ID für Platzhalter und NFO (zwischengespeichert, einmal pro Titel).
+		if m, err := db.Meta(ctx, it.Info.Series, c.ID); err == nil {
+			if m.ExternalIDs.IMDBID != "" && !(it.Info.Series && it.Info.IMDBID != "") {
+				it.Info.IMDBID = m.ExternalIDs.IMDBID
+			}
+			it.Info.TVDBID = m.ExternalIDs.TVDBID
+		}
+	}
 	if it.Info.Series && it.Info.Absolute > 0 && it.Info.Season == 0 && db.Enabled() {
 		if seasons, err := db.Seasons(ctx, c.ID); err == nil {
 			if s, e, ok := absoluteEpisode(seasons, it.Info.Absolute); ok {
@@ -220,6 +320,36 @@ func ApplyCandidate(ctx context.Context, db *TMDB, it *Item, c Candidate) {
 	}
 	if it.Info.Series && it.Info.Episode > 0 && db.Enabled() {
 		if name, err := db.EpisodeTitle(ctx, c.ID, it.Info.Season, it.Info.Episode); err == nil && name != "" {
+			it.Info.EpisodeTitle = name
+		}
+	}
+}
+
+// applyTVDB übernimmt einen Treffer von TheTVDB. Kennt TMDB die Serie unter
+// ihrer TheTVDB-ID, bekommt der Eintrag auch die TMDB-ID (für NFO und Bilder).
+func applyTVDB(ctx context.Context, db *TMDB, it *Item, c Candidate) {
+	it.Info.TVDBID, it.Info.TMDBID, it.Info.Source = c.ID, 0, "tvdb"
+	if db.Enabled() {
+		if f, err := db.Find(ctx, "tvdb_id", strconv.Itoa(c.ID)); err == nil && f.Series {
+			it.Info.TMDBID = f.ID
+		}
+	}
+	if db == nil {
+		return
+	}
+	tv := db.TVDB
+	if !tv.Enabled() || !it.Info.Series {
+		return
+	}
+	if it.Info.Absolute > 0 && it.Info.Season == 0 {
+		if e, err := tv.Absolute(ctx, c.ID, it.Info.Absolute); err == nil {
+			it.Info.Season, it.Info.Episode, it.Info.EpisodeTitle = e.Season, e.Number, e.Name
+			it.Message = fmt.Sprintf("Folge %d ist fortlaufend gezählt, laut TheTVDB ist das Staffel %d, Folge %d. Bitte kurz prüfen.", it.Info.Absolute, e.Season, e.Number)
+		}
+		return
+	}
+	if it.Info.Episode > 0 {
+		if name, err := tv.EpisodeTitle(ctx, c.ID, it.Info.Season, it.Info.Episode); err == nil && name != "" {
 			it.Info.EpisodeTitle = name
 		}
 	}
