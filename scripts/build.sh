@@ -29,4 +29,11 @@ if [ "${KIND:-browser}" = desktop ]; then
       ;;
   esac
 fi
+# Windows: Bären-Symbol (Ressource 3, die Wails fürs Fenster lädt) und
+# Dateiinfos in die .exe. go-winres schreibt rsrc_windows_*.syso, die go build
+# automatisch einbindet; danach wieder weg, damit nichts liegen bleibt.
+if [ "${GOOS:-$(go env GOOS)}" = windows ]; then
+  env -u GOOS -u GOARCH -u CC go run github.com/tc-hib/go-winres@v0.3.3 make --in build/windows/winres.json --arch "${GOARCH:-$(go env GOARCH)}"
+  trap 'rm -f rsrc_windows_*.syso' EXIT
+fi
 go build -trimpath -tags "$tags" -ldflags "$ldflags" -o "$out" .
