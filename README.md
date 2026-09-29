@@ -48,9 +48,13 @@ in eine ordentliche Bibliothek.
    - NAS oder Server ohne Bildschirm: selbst bauen mit `go build -o organibear .` (siehe unten), bedient wird dann im Browser.
 2. Starten. OrganiBear öffnet sein eigenes Fenster. Klappt das nicht (oder bei den Linux-Versionen ohne
    Desktop), öffnet sich die Oberfläche stattdessen im Browser; der Link steht dann auch im Terminal.
-3. Beim ersten Start führt der Bär Schritt für Schritt zum kostenlosen TMDB-Key: Konto anlegen, Key beantragen
-   (mit Vorlage zum Kopieren für das Formular), einfügen, fertig. Der Key wird vor dem Speichern bei TMDB geprüft.
-   Später findest du die Anleitung unter **Einstellungen**, dort auch Vorlagen und Dateiregeln.
+3. Beim ersten Start nimmt dich der Bär an die Hand:
+   - Schritt für Schritt zum kostenlosen TMDB-Key: Konto anlegen, Key beantragen (mit Vorlage zum Kopieren
+     für das Formular), einfügen. Der Key wird vor dem Speichern bei TMDB geprüft.
+   - „Wie soll deine Bibliothek aussehen?“: fertige Beispiele (Plex/Jellyfin/Kodi, alles in einem Ordner,
+     nach Anfangsbuchstaben, mit Bildqualität) mit Vorschau als Ordnerbaum.
+   - Auf Wunsch eine Tour in fünf Bildern. Die gibt es jederzeit oben unter **Hilfe**, Key-Anleitung und
+     Beispiele unter **Einstellungen**.
 4. Unter **Sortieren** wählen, was passieren soll:
    - **Einsortieren:** Quelle und Ziel wählen, die Dateien kommen in die Bibliothek im Zielordner.
    - **Nur umbenennen:** nur die Quelle wählen. Die Dateien bleiben dort und bekommen Namen und Unterordner
@@ -195,7 +199,8 @@ CI prüft bei jedem Push und zusätzlich jeden Montag:
 - Barrierefreiheit nach WCAG 2.2 AA mit Playwright und axe, hell und dunkel, inklusive Tastaturbedienung und 320 px Breite:
   `cd e2e && npm ci && npx playwright install chromium && npm test`
 
-Den Screenshot oben erzeugt `cd e2e && npm run screenshot` neu.
+Den Screenshot oben und die Bilder der Tour (`web/tour/1.jpg` bis `5.jpg`) erzeugt `cd e2e && npm run screenshot` neu.
+Das gehört in jede Änderung am Aussehen.
 
 ## TMDB
 
