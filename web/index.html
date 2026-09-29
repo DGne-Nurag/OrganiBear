@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OrganiBear</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐻</text></svg>">
+<style>
+:root {
+  --bg: #fff7ea;
+  --card: #ffffff;
+  --ink: #3b2616;
+  --muted: #8a7462;
+  --line: #f0dfc8;
+  --honey: #f4a73b;
+  --honey-dark: #d9861a;
+  --fur: #a86b3c;
+  --fur-dark: #7a4a24;
+  --leaf: #4c8b5a;
+  --leaf-soft: #e3f2e2;
+  --berry: #c8504a;
+  --berry-soft: #fbe4e1;
+  --sky-soft: #e5f0fb;
+  --sky: #3d78b5;
+  --sun-soft: #fff0cc;
+  --radius: 18px;
+  --shadow: 0 6px 0 rgba(122, 74, 36, .08), 0 12px 30px rgba(122, 74, 36, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1812; --card: #2b2119; --ink: #f6e7d4; --muted: #b59c84; --line: #44352a;
+    --leaf-soft: #22382a; --berry-soft: #43241f; --sky-soft: #1f3044; --sun-soft: #43361a;
+    --shadow: 0 6px 0 rgba(0,0,0,.25);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: Nunito, "Segoe UI Rounded", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+  font-size: 15px;
+  background-image: radial-gradient(circle at 20px 20px, rgba(244,167,59,.12) 3px, transparent 4px);
+  background-size: 48px 48px;
+}
+main { max-width: 1100px; margin: 0 auto; padding: 16px 16px 120px; }
+header { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 8px 0 20px; }
+.brand { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 280px; }
+.brand h1 { margin: 0; font-size: 30px; letter-spacing: -.5px; }
+.brand h1 span { color: var(--honey-dark); }
+.bubble {
+  position: relative; background: var(--card); border: 2px solid var(--line); border-radius: 16px;
+  padding: 8px 14px; font-weight: 600; max-width: 380px; box-shadow: var(--shadow);
+}
+.bubble::before {
+  content: ""; position: absolute; left: -10px; top: 18px; border: 8px solid transparent;
+  border-right-color: var(--line); border-left: 0;
+}
+nav { display: flex; gap: 6px; background: var(--card); padding: 5px; border-radius: 999px; box-shadow: var(--shadow); }
+nav button { border: 0; background: transparent; color: var(--ink); padding: 8px 16px; border-radius: 999px; font: inherit; font-weight: 700; cursor: pointer; }
+nav button.active { background: var(--honey); color: #fff; }
+
+/* Bär */
+#bear { width: 96px; height: 96px; flex: none; overflow: visible; }
+#bear .happy-eyes, #bear .question { opacity: 0; }
+#bear .eyes { transform-origin: 60px 58px; animation: blink 4.5s infinite; }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+#bear[data-mood=sniff] .head { animation: sniff .5s ease-in-out infinite alternate; transform-origin: 60px 100px; }
+#bear[data-mood=sniff] .nose { animation: wiggle .18s infinite alternate; transform-origin: 60px 72px; }
+@keyframes sniff { from { transform: rotate(-6deg); } to { transform: rotate(6deg); } }
+@keyframes wiggle { from { transform: translateY(0) scale(1); } to { transform: translateY(-1.5px) scale(1.12); } }
+#bear[data-mood=happy] .head { animation: hop .45s ease-in-out 3; }
+#bear[data-mood=happy] .eyes { opacity: 0; }
+#bear[data-mood=happy] .happy-eyes { opacity: 1; }
+@keyframes hop { 50% { transform: translateY(-10px); } }
+#bear[data-mood=confused] .head { transform: rotate(-9deg); transform-origin: 60px 100px; transition: transform .3s; }
+#bear[data-mood=confused] .question { opacity: 1; }
+
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin-bottom: 16px; }
+.row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 200px; }
+.field label, .label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.pathpick { display: flex; gap: 6px; }
+input, select {
+  font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--line);
+  border-radius: 12px; padding: 9px 12px; width: 100%; min-width: 0;
+}
+input:focus, select:focus { outline: none; border-color: var(--honey); }
+button.btn {
+  font: inherit; font-weight: 800; border: 0; border-radius: 14px; padding: 10px 18px; cursor: pointer;
+  background: var(--line); color: var(--ink); white-space: nowrap; transition: transform .1s;
+}
+button.btn:active { transform: translateY(2px); }
+button.btn.primary { background: var(--honey); color: #fff; box-shadow: 0 4px 0 var(--honey-dark); }
+button.btn.go { background: var(--leaf); color: #fff; box-shadow: 0 4px 0 #356643; }
+button.btn.small { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
+button.btn:disabled { opacity: .45; cursor: default; }
+.icon-btn { flex: none; width: 44px; padding: 0 !important; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+.chip { padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 13px; background: var(--line); }
+.s-ready { background: var(--leaf-soft); color: var(--leaf); }
+.s-offline { background: var(--sky-soft); color: var(--sky); }
+.s-unmatched, .s-conflict { background: var(--sun-soft); color: var(--honey-dark); }
+.s-error { background: var(--berry-soft); color: var(--berry); }
+.s-done, .s-same { background: var(--line); color: var(--muted); }
+
+.item { display: grid; grid-template-columns: 28px 48px 1fr auto; gap: 12px; align-items: center; padding: 12px 6px; border-top: 2px dashed var(--line); }
+.item:first-child { border-top: 0; }
+.item input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--leaf); }
+.poster { width: 48px; height: 68px; border-radius: 8px; background: var(--line); object-fit: cover; display: grid; place-items: center; font-size: 22px; }
+.paths { min-width: 0; }
+.old { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.new { font-weight: 700; overflow-wrap: anywhere; }
+.new::before { content: "→ "; color: var(--honey-dark); }
+.meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; }
+.tag { padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+.side { display: flex; flex-direction: column; gap: 6px; align-items: end; }
+.edit { grid-column: 3 / -1; background: var(--bg); border-radius: 14px; padding: 14px; }
+.cands { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; }
+.cand { flex: none; width: 128px; border: 2px solid var(--line); border-radius: 12px; padding: 6px; cursor: pointer; background: var(--card); text-align: left; font: inherit; color: inherit; }
+.cand.on { border-color: var(--leaf); }
+.cand img, .cand .ph { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; background: var(--line); display: grid; place-items: center; font-size: 28px; }
+.cand b { display: block; font-size: 13px; margin-top: 4px; }
+.cand small { color: var(--muted); }
+.empty { text-align: center; padding: 40px 10px; color: var(--muted); }
+.empty .big { font-size: 48px; }
+
+.bar {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(1068px, calc(100% - 32px));
+  background: var(--card); border-radius: 999px; box-shadow: var(--shadow), 0 0 0 2px var(--line);
+  padding: 10px 10px 10px 22px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.bar .grow { flex: 1; font-weight: 700; }
+
+table { width: 100%; border-collapse: collapse; }
+td, th { padding: 6px 4px; text-align: left; vertical-align: middle; }
+th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+.preview { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--bg); border-radius: 10px; padding: 8px 10px; margin-top: 6px; overflow-wrap: anywhere; }
+.preview.err { color: var(--berry); }
+.ph-list { display: flex; gap: 6px; flex-wrap: wrap; }
+.ph-list button { font: inherit; font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; border: 2px dashed var(--honey); color: var(--honey-dark); background: transparent; border-radius: 8px; padding: 3px 8px; cursor: pointer; }
+.hint { color: var(--muted); font-size: 13px; }
+.hint a { color: var(--honey-dark); }
+.hist { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-top: 2px dashed var(--line); flex-wrap: wrap; }
+.hist:first-child { border-top: 0; }
+.hist ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+
+dialog { border: 0; border-radius: var(--radius); padding: 0; width: min(560px, calc(100% - 32px)); background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+dialog::backdrop { background: rgba(59, 38, 22, .35); }
+.dlg-head { padding: 16px 18px 8px; font-weight: 800; overflow-wrap: anywhere; }
+.dirs { max-height: 50vh; overflow: auto; padding: 0 10px; }
+.dirs button { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+.dirs button:hover { background: var(--bg); }
+.dlg-foot { display: flex; gap: 8px; justify-content: end; padding: 12px 18px 16px; }
+.toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-weight: 700; z-index: 10; }
+[hidden] { display: none !important; }
+@media (max-width: 640px) {
+  .item { grid-template-columns: 24px 1fr; }
+  .item .poster { display: none; }
+  .side { grid-column: 2; align-items: start; flex-direction: row; flex-wrap: wrap; }
+  .edit { grid-column: 1 / -1; }
+  .bar { border-radius: 18px; padding: 10px; bottom: 8px; }
+  .bar .grow { flex-basis: 100%; text-align: center; }
+  .bar button { flex: 1; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">
+      <svg id="bear" viewBox="0 0 120 120" data-mood="idle" aria-hidden="true">
+        <g class="head">
+          <circle cx="28" cy="32" r="17" fill="var(--fur-dark)"/>
+          <circle cx="92" cy="32" r="17" fill="var(--fur-dark)"/>
+          <circle cx="28" cy="32" r="8" fill="#e2b07a"/>
+          <circle cx="92" cy="32" r="8" fill="#e2b07a"/>
+          <circle cx="60" cy="66" r="42" fill="var(--fur)"/>
+          <ellipse cx="60" cy="82" rx="23" ry="17" fill="#f0cfa6"/>
+          <circle cx="36" cy="76" r="6" fill="#ef8f7c" opacity=".45"/>
+          <circle cx="84" cy="76" r="6" fill="#ef8f7c" opacity=".45"/>
+          <g class="eyes">
+            <circle cx="44" cy="58" r="5.5" fill="#2b1a10"/>
+            <circle cx="76" cy="58" r="5.5" fill="#2b1a10"/>
+            <circle cx="46" cy="56" r="1.8" fill="#fff"/>
+            <circle cx="78" cy="56" r="1.8" fill="#fff"/>
+          </g>
+          <g class="happy-eyes" stroke="#2b1a10" stroke-width="3.5" fill="none" stroke-linecap="round">
+            <path d="M38 60 q6 -8 12 0"/>
+            <path d="M70 60 q6 -8 12 0"/>
+          </g>
+          <ellipse class="nose" cx="60" cy="74" rx="7.5" ry="5.5" fill="#2b1a10"/>
+          <path d="M60 79 q0 6 -7 7 M60 79 q0 6 7 7" stroke="#2b1a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <text class="question" x="100" y="22" font-size="26" font-weight="900" fill="var(--honey-dark)">?</text>
+      </svg>
+      <div>
+        <h1>Organi<span>Bear</span></h1>
+        <div class="bubble" id="say">Hallo! Zeig mir deinen Medienhaufen, ich räume auf.</div>
+      </div>
+    </div>
+    <nav>
+      <button data-tab="sort" class="active">Sortieren</button>
+      <button data-tab="settings">Einstellungen</button>
+      <button data-tab="history">Verlauf</button>
+    </nav>
+  </header>
+
+  <!-- Sortieren -->
+  <section id="tab-sort">
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label for="src">Quelle (das Durcheinander)</label>
+          <div class="pathpick"><input id="src" placeholder="z. B. D:\Downloads"><button class="btn icon-btn" data-pick="src" title="Ordner wählen">📁</button></div>
+        </div>
+        <div class="field">
+          <label for="dst">Ziel (die Bibliothek)</label>
+          <div class="pathpick"><input id="dst" placeholder="z. B. E:\Medien"><button class="btn icon-btn" data-pick="dst" title="Ordner wählen">📁</button></div>
+        </div>
+        <button class="btn primary" id="scan">🐾 Schnüffeln</button>
+      </div>
+      <p class="hint" id="offline-hint" hidden>Ohne TMDB-Key arbeitet der Bär nur mit den Dateinamen. In den <a href="#" data-goto="settings">Einstellungen</a> kannst du einen Key eintragen.</p>
+    </div>
+
+    <div class="card" id="results" hidden>
+      <div class="chips" id="summary"></div>
+      <div id="items"></div>
+    </div>
+    <div class="card empty" id="empty">
+      <div class="big">🍯</div>
+      Noch nichts beschnüffelt. Wähle Quelle und Ziel und drück auf „Schnüffeln“.<br>
+      Es wird erst etwas verschoben, wenn du die Vorschau bestätigst.
+    </div>
+  </section>
+
+  <!-- Einstellungen -->
+  <section id="tab-settings" hidden>
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label for="key">TMDB API-Key</label>
+          <div class="pathpick"><input id="key" type="password" autocomplete="off" placeholder="API-Key (v3) oder Read Access Token"><button class="btn icon-btn" id="showkey" title="Anzeigen">👁</button></div>
+        </div>
+        <div class="field" style="max-width:220px">
+          <label for="lang">Sprache der Titel</label>
+          <select id="lang">
+            <option value="de-DE">Deutsch</option>
+            <option value="en-US">Englisch</option>
+            <option value="fr-FR">Französisch</option>
+            <option value="es-ES">Spanisch</option>
+            <option value="it-IT">Italienisch</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint">Einen kostenlosen Key gibt es nach der Anmeldung auf <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org</a>.</p>
+    </div>
+
+    <div class="card">
+      <div class="label" style="margin-bottom:8px">Namensvorlagen</div>
+      <div class="field" style="margin-bottom:12px">
+        <label for="tmovie">Filme</label>
+        <input id="tmovie" class="tmpl">
+        <div class="preview" id="pmovie"></div>
+      </div>
+      <div class="field" style="margin-bottom:12px">
+        <label for="tseries">Serien</label>
+        <input id="tseries" class="tmpl">
+        <div class="preview" id="pseries"></div>
+      </div>
+      <p class="hint">„/“ trennt Ordner. Die Dateiendung hängt der Bär selbst an. Zahlen lassen sich auffüllen, z. B. <code>{season:02}</code> → 01. Leere Platzhalter samt Klammern und Strichen fallen weg. Klick auf einen Platzhalter fügt ihn ein:</p>
+      <div class="ph-list" id="placeholders"></div>
+    </div>
+
+    <div class="card">
+      <div class="label" style="margin-bottom:8px">Dateiregeln: was passiert mit welchen Dateien?</div>
+      <p class="hint" style="margin-top:0">Videos werden einzeln einsortiert. Begleitdateien (Untertitel, NFO, Bilder …) wandern mit dem Video, zu dem sie gehören, und bekommen dessen neuen Namen.</p>
+      <table>
+        <thead><tr><th>Name</th><th>Art</th><th>Endungen</th><th>Aktion</th><th></th></tr></thead>
+        <tbody id="rules"></tbody>
+      </table>
+      <button class="btn small" id="addrule" style="margin-top:8px">+ Regel</button>
+      <div class="field" style="margin-top:16px">
+        <label for="ignore">Ignorieren (Muster, mit Komma getrennt)</label>
+        <input id="ignore" placeholder="*sample*, *trailer*">
+      </div>
+    </div>
+    <div class="row" style="justify-content:end">
+      <span class="hint" id="cfgpath"></span>
+      <button class="btn primary" id="save">Speichern</button>
+    </div>
+  </section>
+
+  <!-- Verlauf -->
+  <section id="tab-history" hidden>
+    <div class="card" id="history"></div>
+  </section>
+</main>
+
+<div class="bar" id="bar" hidden>
+  <span class="grow" id="selinfo"></span>
+  <button class="btn small" id="selready">Alle bereiten wählen</button>
+  <button class="btn small" id="selnone">Keine</button>
+  <button class="btn go" id="apply">🐻 Einsortieren</button>
+</div>
+
+<dialog id="picker">
+  <div class="dlg-head" id="pk-path"></div>
+  <div class="dirs" id="pk-dirs"></div>
+  <div class="dlg-foot">
+    <button class="btn small" id="pk-cancel">Abbrechen</button>
+    <button class="btn small primary" id="pk-ok">Diesen Ordner nehmen</button>
+  </div>
+</dialog>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const state = { cfg: null, items: [], online: false, sel: new Set(), open: null, placeholders: [] };
+
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json", "X-OrganiBear": "1" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+// Bär
+let moodTimer;
+function bear(mood, text, ms) {
+  $("#bear").dataset.mood = mood;
+  if (text) $("#say").textContent = text;
+  clearTimeout(moodTimer);
+  if (ms) moodTimer = setTimeout(() => ($("#bear").dataset.mood = "idle"), ms);
+}
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  document.body.append(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// Tabs
+function showTab(name) {
+  $$("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  $$("main > section").forEach(s => (s.hidden = s.id !== "tab-" + name));
+  $("#bar").hidden = name !== "sort" || !state.items.length;
+  if (name === "history") loadHistory();
+  if (name === "settings") bear("idle", "Hier stellst du ein, wie deine Bibliothek aussehen soll.");
+}
+$$("nav button").forEach(b => (b.onclick = () => showTab(b.dataset.tab)));
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-goto]");
+  if (g) { e.preventDefault(); showTab(g.dataset.goto); }
+});
+
+// Konfiguration
+const STATUS = {
+  ready: "bereit", offline: "bereit (nur Dateiname)", unmatched: "bitte prüfen",
+  conflict: "Konflikt", same: "liegt schon richtig", done: "erledigt", error: "Fehler",
+};
+const ACTION = { move: "verschieben", copy: "kopieren", skip: "ignorieren" };
+const KIND = { video: "Video", companion: "Begleitdatei" };
+
+async function loadConfig() {
+  const data = await api("GET", "/api/config");
+  state.cfg = data.config;
+  state.placeholders = data.placeholders;
+  const c = state.cfg;
+  $("#src").value = c.source_dir || "";
+  $("#dst").value = c.target_dir || "";
+  $("#key").value = c.tmdb_api_key || "";
+  $("#lang").value = c.language || "de-DE";
+  $("#tmovie").value = c.movie_template;
+  $("#tseries").value = c.series_template;
+  $("#ignore").value = (c.ignore_patterns || []).join(", ");
+  $("#cfgpath").textContent = "Gespeichert in " + data.path;
+  renderRules(c.file_rules || []);
+  $("#placeholders").innerHTML = state.placeholders.map(p => `<button type="button" data-ph="${p}">{${p}}</button>`).join("");
+  $("#offline-hint").hidden = !!c.tmdb_api_key;
+  preview();
+}
+
+function renderRules(rules) {
+  const opt = (map, v) => Object.entries(map).map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("");
+  $("#rules").innerHTML = rules.map(r => `
+    <tr>
+      <td><input class="r-name" value="${esc(r.name)}"></td>
+      <td><select class="r-kind">${opt(KIND, r.kind)}</select></td>
+      <td><input class="r-ext" value="${esc((r.extensions || []).join(", "))}"></td>
+      <td><select class="r-action">${opt(ACTION, r.action)}</select></td>
+      <td><button class="btn small r-del" title="Entfernen">✕</button></td>
+    </tr>`).join("");
+}
+function readRules() {
+  return $$("#rules tr").map(tr => ({
+    name: $(".r-name", tr).value.trim(),
+    kind: $(".r-kind", tr).value,
+    extensions: $(".r-ext", tr).value.split(/[,\s]+/).filter(Boolean),
+    action: $(".r-action", tr).value,
+  }));
+}
+$("#rules").addEventListener("click", e => { if (e.target.closest(".r-del")) e.target.closest("tr").remove(); });
+$("#addrule").onclick = () => renderRules([...readRules(), { name: "Neue Regel", kind: "companion", extensions: [], action: "copy" }]);
+$("#showkey").onclick = () => ($("#key").type = $("#key").type === "password" ? "text" : "password");
+
+let lastTmpl = null;
+$$(".tmpl").forEach(i => { i.addEventListener("focus", () => (lastTmpl = i)); i.addEventListener("input", preview); });
+$("#placeholders").addEventListener("click", e => {
+  const b = e.target.closest("[data-ph]");
+  if (!b) return;
+  const input = lastTmpl || $("#tmovie");
+  const pos = input.selectionStart ?? input.value.length;
+  const ins = "{" + b.dataset.ph + "}";
+  input.value = input.value.slice(0, pos) + ins + input.value.slice(input.selectionEnd ?? pos);
+  input.focus(); input.selectionStart = input.selectionEnd = pos + ins.length;
+  preview();
+});
+let previewTimer;
+function preview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    const r = await api("POST", "/api/template-preview", { movie_template: $("#tmovie").value, series_template: $("#tseries").value });
+    for (const k of ["movie", "series"]) {
+      const el = $("#p" + k);
+      el.classList.toggle("err", !!r[k + "_error"]);
+      el.textContent = r[k + "_error"] || r[k];
+    }
+  }, 150);
+}
+
+$("#save").onclick = async () => {
+  const cfg = {
+    ...state.cfg,
+    tmdb_api_key: $("#key").value.trim(),
+    language: $("#lang").value,
+    source_dir: $("#src").value.trim(),
+    target_dir: $("#dst").value.trim(),
+    movie_template: $("#tmovie").value,
+    series_template: $("#tseries").value,
+    file_rules: readRules(),
+    ignore_patterns: $("#ignore").value.split(",").map(s => s.trim()).filter(Boolean),
+  };
+  try {
+    const r = await api("PUT", "/api/config", cfg);
+    state.cfg = r.config;
+    $("#offline-hint").hidden = !!state.cfg.tmdb_api_key;
+    bear("happy", "Gespeichert! Ich merk mir das.", 1800);
+    if (state.items.length) await refreshItems();
+  } catch (e) {
+    bear("confused", e.message, 3000);
+  }
+};
+
+// Sortieren
+$("#scan").onclick = async () => {
+  bear("sniff", "Schnüffel, schnüffel … ich schaue mir alles an.");
+  $("#scan").disabled = true;
+  try {
+    const r = await api("POST", "/api/scan", { source_dir: $("#src").value.trim(), target_dir: $("#dst").value.trim() });
+    setItems(r, true);
+    const n = state.items.length;
+    const todo = state.items.filter(i => i.status === "unmatched" || i.status === "conflict").length;
+    if (!n) bear("confused", "Hier finde ich keine Videos. Stimmt der Ordner?", 4000);
+    else if (todo) bear("confused", `${n} Videos gefunden. Bei ${todo} bin ich mir nicht sicher, schau bitte kurz drüber.`, 4000);
+    else bear("happy", `${n} Videos gefunden, alles klar! Prüf die Vorschau und dann los.`, 2500);
+  } catch (e) {
+    bear("confused", e.message, 4000);
+  } finally {
+    $("#scan").disabled = false;
+  }
+};
+
+async function refreshItems() { setItems(await api("GET", "/api/items"), false); }
+
+function setItems(r, fresh) {
+  state.items = r.items || [];
+  state.online = r.online;
+  $("#offline-hint").hidden = r.online;
+  const ids = new Set(state.items.map(i => i.id));
+  if (fresh) {
+    state.sel = new Set(state.items.filter(i => i.status === "ready" || i.status === "offline").map(i => i.id));
+    state.open = null;
+  }
+  for (const id of state.sel) {
+    const it = state.items.find(i => i.id === id);
+    if (!ids.has(id) || !selectable(it)) state.sel.delete(id);
+  }
+  render();
+}
+
+const selectable = it => it && ["ready", "offline", "unmatched"].includes(it.status) && it.info.title;
+
+function render() {
+  const items = state.items;
+  $("#results").hidden = !items.length;
+  $("#empty").hidden = !!items.length;
+  $("#bar").hidden = !items.length || $("#tab-sort").hidden;
+  const counts = {};
+  items.forEach(i => (counts[i.status] = (counts[i.status] || 0) + 1));
+  $("#summary").innerHTML = Object.entries(counts).map(([s, n]) => `<span class="chip s-${s}">${n} × ${STATUS[s]}</span>`).join("");
+  $("#items").innerHTML = items.map(itemHTML).join("");
+  $("#selinfo").textContent = `${state.sel.size} von ${items.length} ausgewählt`;
+  $("#apply").disabled = !state.sel.size;
+}
+
+function itemHTML(it) {
+  const info = it.info;
+  const cand = it.candidates?.find(c => c.id === info.tmdb_id);
+  const poster = cand?.poster ? `<img class="poster" src="${esc(cand.poster)}" alt="">` : `<div class="poster">${info.series ? "📺" : "🎬"}</div>`;
+  const comps = it.companions?.length ? `<span class="tag s-done">+${it.companions.length} Begleitdatei${it.companions.length > 1 ? "en" : ""}</span>` : "";
+  const action = it.action === "copy" ? `<span class="tag s-offline">kopieren</span>` : "";
+  const locked = it.status === "done" || it.status === "same";
+  return `
+  <div class="item" data-id="${it.id}">
+    <input type="checkbox" class="sel" ${state.sel.has(it.id) ? "checked" : ""} ${selectable(it) ? "" : "disabled"}>
+    ${poster}
+    <div class="paths">
+      <div class="old">${esc(it.rel_source)}</div>
+      <div class="new">${esc(it.rel_target || "?")}</div>
+      <div class="meta">
+        <span class="tag s-${it.status}">${STATUS[it.status]}</span>
+        <span class="tag s-done">${info.series ? "Serie" : "Film"}</span>
+        ${comps}${action}
+        ${it.message ? `<span class="hint">${esc(it.message)}</span>` : ""}
+      </div>
+    </div>
+    <div class="side">${locked ? "" : `<button class="btn small tog">${state.open === it.id ? "Schließen" : "Anpassen"}</button>`}</div>
+    ${state.open === it.id && !locked ? editHTML(it) : ""}
+  </div>`;
+}
+
+function editHTML(it) {
+  const i = it.info;
+  const cands = (it.candidates || []).map(c => `
+    <button class="cand ${c.id === i.tmdb_id ? "on" : ""}" data-cand="${c.id}" title="${esc(c.overview)}">
+      ${c.poster ? `<img src="${esc(c.poster)}" alt="">` : `<div class="ph">🐻</div>`}
+      <b>${esc(c.title)}</b><small>${c.year || "–"}</small>
+    </button>`).join("");
+  return `
+  <div class="edit">
+    ${cands ? `<div class="label">Treffer: welcher ist es?</div><div class="cands">${cands}</div>` : ""}
+    ${state.online ? `
+    <div class="label">Selbst suchen</div>
+    <div class="row" style="margin:4px 0 12px">
+      <div class="field"><input class="q" value="${esc(it.parsed.title)}" placeholder="Titel"></div>
+      <div class="field" style="max-width:100px;min-width:80px"><input class="qy" value="${it.parsed.year || ""}" placeholder="Jahr" inputmode="numeric"></div>
+      <div class="field" style="max-width:130px;min-width:110px"><select class="qs"><option value="0" ${i.series ? "" : "selected"}>Film</option><option value="1" ${i.series ? "selected" : ""}>Serie</option></select></div>
+      <button class="btn small primary search">Suchen</button>
+    </div>` : ""}
+    <div class="label">Oder von Hand</div>
+    <div class="row" style="margin-top:4px">
+      <div class="field"><input class="m-title" value="${esc(i.title)}" placeholder="Titel"></div>
+      <div class="field" style="max-width:90px;min-width:80px"><input class="m-year" value="${i.year || ""}" placeholder="Jahr" inputmode="numeric"></div>
+      ${i.series ? `
+      <div class="field" style="max-width:80px;min-width:70px"><input class="m-season" value="${i.season || ""}" placeholder="Staffel" inputmode="numeric"></div>
+      <div class="field" style="max-width:80px;min-width:70px"><input class="m-episode" value="${i.episode || ""}" placeholder="Folge" inputmode="numeric"></div>
+      <div class="field"><input class="m-eptitle" value="${esc(i.episode_title)}" placeholder="Folgentitel"></div>` : ""}
+      <button class="btn small manual">Übernehmen</button>
+    </div>
+  </div>`;
+}
+
+$("#items").addEventListener("change", e => {
+  if (!e.target.classList.contains("sel")) return;
+  const id = +e.target.closest(".item").dataset.id;
+  e.target.checked ? state.sel.add(id) : state.sel.delete(id);
+  render();
+});
+$("#items").addEventListener("click", async e => {
+  const row = e.target.closest(".item");
+  if (!row) return;
+  const id = +row.dataset.id;
+  const it = state.items.find(i => i.id === id);
+  const num = s => parseInt($(s, row)?.value, 10) || 0;
+  let body;
+  if (e.target.closest(".tog")) { state.open = state.open === id ? null : id; return render(); }
+  const cand = e.target.closest("[data-cand]");
+  if (cand) body = { candidate_id: +cand.dataset.cand };
+  if (e.target.closest(".search")) body = { query: $(".q", row).value.trim(), year: num(".qy"), series: $(".qs", row).value === "1" };
+  if (e.target.closest(".manual")) body = { info: { ...it.info, title: $(".m-title", row).value.trim(), year: num(".m-year"), season: it.info.series ? num(".m-season") : 0, episode: it.info.series ? num(".m-episode") : 0, episode_end: 0, episode_title: it.info.series ? $(".m-eptitle", row).value.trim() : "", tmdb_id: 0 } };
+  if (!body) return;
+  try {
+    bear("sniff", "Moment …");
+    setItems(await api("POST", "/api/items/" + id, body), false);
+    const now = state.items.find(i => i.id === id);
+    if (selectable(now)) state.sel.add(id);
+    render();
+    bear("happy", "So passt das.", 1500);
+  } catch (err) {
+    bear("confused", err.message, 3000);
+  }
+});
+
+$("#selready").onclick = () => { state.items.filter(i => i.status === "ready" || i.status === "offline").forEach(i => state.sel.add(i.id)); render(); };
+$("#selnone").onclick = () => { state.sel.clear(); render(); };
+$("#apply").onclick = async () => {
+  const chosen = state.items.filter(i => state.sel.has(i.id));
+  const copies = chosen.filter(i => i.action === "copy").length;
+  const msg = `${chosen.length} Videos (plus Begleitdateien) werden ${copies === chosen.length ? "kopiert" : copies ? "verschoben bzw. kopiert" : "verschoben"}.\nÜber den Verlauf lässt sich das rückgängig machen.\n\nLos geht's?`;
+  if (!confirm(msg)) return;
+  bear("sniff", "Ich trage alles an seinen Platz …");
+  try {
+    const r = await api("POST", "/api/apply", { ids: [...state.sel] });
+    state.sel.clear();
+    setItems(r, false);
+    const errs = state.items.filter(i => i.status === "error").length;
+    if (errs) bear("confused", `Fertig, aber ${errs} Datei(en) hatten Probleme. Details stehen daneben.`, 5000);
+    else bear("happy", `Fertig! ${r.ops} Dateien sind jetzt ordentlich einsortiert. 🍯`, 3000);
+  } catch (e) {
+    bear("confused", e.message, 4000);
+  }
+};
+
+// Verlauf
+async function loadHistory() {
+  const list = await api("GET", "/api/history");
+  $("#history").innerHTML = list.length ? list.map(h => `
+    <div class="hist">
+      <div>
+        <b>${new Date(h.created).toLocaleString("de-DE")}</b> · ${h.ops} Datei${h.ops === 1 ? "" : "en"}
+        ${h.undone ? `<span class="tag s-done">rückgängig gemacht</span>` : ""}
+        <ul>${(h.sample || []).map(o => `<li>${ACTION[o.action]}: ${esc(o.target)}</li>`).join("")}${h.ops > 5 ? "<li>…</li>" : ""}</ul>
+      </div>
+      <button class="btn small" data-undo="${esc(h.file)}" ${h.undone ? "disabled" : ""}>↩ Rückgängig</button>
+    </div>`).join("") : `<div class="empty"><div class="big">📜</div>Noch nichts einsortiert.</div>`;
+}
+$("#history").addEventListener("click", async e => {
+  const b = e.target.closest("[data-undo]");
+  if (!b || !confirm("Diesen Lauf rückgängig machen? Verschobenes wandert zurück, Kopien werden gelöscht.")) return;
+  try {
+    const r = await api("POST", "/api/undo", { file: b.dataset.undo });
+    state.items = []; state.sel.clear(); render();
+    if (r.problems?.length) bear("confused", "Nicht alles ging zurück: " + r.problems.join("; "), 6000);
+    else bear("happy", "Alles wieder wie vorher.", 2500);
+    loadHistory();
+  } catch (err) {
+    bear("confused", err.message, 4000);
+  }
+});
+
+// Ordnerauswahl
+let pickTarget = null;
+async function openDir(path) {
+  try {
+    const r = await api("GET", "/api/dirs?path=" + encodeURIComponent(path || ""));
+    $("#pk-path").textContent = r.path;
+    $("#pk-path").dataset.path = r.path;
+    $("#pk-dirs").innerHTML =
+      (r.parent ? `<button data-dir="${esc(r.parent)}">⬆️ eine Ebene hoch</button>` : "") +
+      r.dirs.map(d => `<button data-dir="${esc(r.path + (r.path.endsWith(r.sep) ? "" : r.sep) + d)}">📁 ${esc(d)}</button>`).join("");
+  } catch (e) {
+    if (path) openDir("");
+  }
+}
+$$("[data-pick]").forEach(b => (b.onclick = () => { pickTarget = $("#" + b.dataset.pick); openDir(pickTarget.value.trim()); $("#picker").showModal(); }));
+$("#pk-dirs").addEventListener("click", e => { const b = e.target.closest("[data-dir]"); if (b) openDir(b.dataset.dir); });
+$("#pk-cancel").onclick = () => $("#picker").close();
+$("#pk-ok").onclick = () => { pickTarget.value = $("#pk-path").dataset.path; $("#picker").close(); };
+
+loadConfig().then(refreshItems).catch(e => bear("confused", e.message));
+</script>
+</body>
+</html>
