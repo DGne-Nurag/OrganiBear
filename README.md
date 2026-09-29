@@ -19,6 +19,7 @@ in eine ordentliche Bibliothek.
 - **Dateiregeln:** Du legst fest, welche Dateiendungen Videos und welche Begleitdateien sind (Untertitel, NFO, Bilder …) und ob sie verschoben, kopiert oder ignoriert werden. Begleitdateien bekommen den neuen Namen ihres Videos (`Film (2010).de.srt`).
 - **Erst Vorschau, dann Aktion.** Nichts wird bewegt, bevor du bestätigst. Vorhandene Dateien werden nie überschrieben.
 - **Rückgängig:** Jeder Lauf landet im Verlauf und lässt sich mit einem Klick zurückdrehen.
+- **Für Plex, Jellyfin und Kodi:** auf Wunsch NFO-Dateien, Poster und Hintergrundbilder dazu, danach liest der Mediaserver seine Bibliothek neu ein.
 
 ## Loslegen
 
@@ -43,6 +44,23 @@ ein zweites Strg+C bricht sofort ab.
 
 Die Konfiguration liegt standardmäßig als `organibear.json` neben dem Programm,
 der Verlauf im Ordner `organibear-verlauf` daneben.
+
+## Mediaserver
+
+Unter **Einstellungen › Mediaserver** lässt sich einschalten, was beim Einsortieren zusätzlich passiert
+(nur für Einträge mit TMDB-Treffer):
+
+- **NFO-Dateien** im Kodi-Format mit Titel, Inhalt, Genres sowie TMDB-, IMDb- und TheTVDB-ID. Kodi, Jellyfin und Emby
+  lesen sie direkt, Plex mit einem NFO-Agent.
+- **Bilder von TMDB:** `poster.jpg` und `fanart.jpg` im Film- bzw. Serienordner, Staffelposter (`season01-poster.jpg`)
+  und Vorschaubilder für Folgen (`<Folge>-thumb.jpg`). Liegen mehrere Filme in einem Ordner, heißen die Bilder
+  `<Film>-poster.jpg` und `<Film>-fanart.jpg`.
+- **Bibliothek neu einlesen:** Nach dem Einsortieren stößt OrganiBear Plex (Adresse und Plex-Token), Jellyfin
+  (Adresse und API-Schlüssel) und Kodi (Adresse der Web-Steuerung, ggf. Benutzer und Passwort) an. Mit „Testen“
+  prüfst du die Zugangsdaten sofort.
+
+Vorhandene Dateien werden nie überschrieben, „Rückgängig“ entfernt die angelegten Dateien wieder.
+Die Zugangsdaten liegen nur in der lokalen Konfigurationsdatei.
 
 ## Sicherheit und Barrierefreiheit
 

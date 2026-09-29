@@ -85,6 +85,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/dirs", s.dirs)
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	mux.HandleFunc("POST /api/quit", s.quitHandler)
+	mux.HandleFunc("POST /api/mediaserver/test", s.testMediaServer)
 	mux.Handle("GET /", http.FileServerFS(s.static))
 	return s.guard(mux)
 }
@@ -345,10 +346,16 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	PlanTargets(s.cfg, s.items) // Ziele frisch prüfen, falls sich auf der Platte etwas getan hat
-	j, path, err := Apply(s.cfg, s.items, ids, s.journalDir)
+	cfg, db := s.cfg, s.db
+	extras := func(it *Item) ([]string, []string) { return WriteExtras(r.Context(), cfg, db, it) }
+	j, path, err := Apply(cfg, s.items, ids, s.journalDir, extras)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
+	}
+	var refreshed []string
+	if len(j.Ops) > 0 {
+		refreshed = RefreshLibraries(r.Context(), cfg.Extras)
 	}
 	// Erledigtes verschwindet aus der Liste, der Rest wird neu geprüft.
 	rest := s.items[:0]
@@ -362,7 +369,30 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 	}
 	s.items = rest
 	PlanTargets(s.cfg, s.items)
-	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled(), "ops": len(j.Ops), "done": done, "journal": filepath.Base(path)})
+	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled(), "ops": len(j.Ops), "done": done, "journal": filepath.Base(path),
+		"warnings": j.Warnings, "refreshed": refreshed})
+}
+
+// testMediaServer probiert die Zugangsdaten aus dem Formular aus (auch
+// ungespeicherte), indem es den Server die Bibliothek neu einlesen lässt.
+func (s *Server) testMediaServer(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Kind   string      `json:"kind"`
+		Server MediaServer `json:"server"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if _, ok := serverNames[req.Kind]; !ok {
+		writeErr(w, http.StatusBadRequest, errors.New("unbekannter Mediaserver"))
+		return
+	}
+	if err := refreshServer(r.Context(), req.Kind, req.Server); err != nil {
+		writeErr(w, http.StatusBadGateway, fmt.Errorf("%s: %w", serverNames[req.Kind], err))
+		return
+	}
+	writeJSON(w, map[string]string{"message": serverNames[req.Kind] + " ist erreichbar und liest die Bibliothek neu ein."})
 }
 
 type historyEntry struct {

@@ -29,6 +29,7 @@ type TMDB struct {
 	Key      string
 	Language string
 	BaseURL  string
+	ImageURL string // Basisadresse für Bilder in Originalgröße
 	HTTP     *http.Client
 
 	mu    sync.Mutex
@@ -40,6 +41,7 @@ func NewTMDB(key, lang string) *TMDB {
 		Key:      strings.TrimSpace(key),
 		Language: lang,
 		BaseURL:  "https://api.themoviedb.org/3",
+		ImageURL: "https://image.tmdb.org/t/p/original",
 		HTTP:     &http.Client{Timeout: 15 * time.Second},
 		cache:    map[string][]byte{},
 	}
@@ -181,9 +183,98 @@ func (t *TMDB) Details(ctx context.Context, series bool, id int) (Candidate, err
 
 // EpisodeTitle holt den Namen einer Folge.
 func (t *TMDB) EpisodeTitle(ctx context.Context, tvID, season, episode int) (string, error) {
-	var r struct {
+	ep, err := t.Episode(ctx, tvID, season, episode)
+	return ep.Name, err
+}
+
+// Meta sind die ausführlichen Daten eines Films oder einer Serie für NFO-Dateien.
+type Meta struct {
+	ID            int    `json:"id"`
+	Title         string `json:"title"`
+	Name          string `json:"name"`
+	OriginalTitle string `json:"original_title"`
+	OriginalName  string `json:"original_name"`
+	Overview      string `json:"overview"`
+	ReleaseDate   string `json:"release_date"`
+	FirstAirDate  string `json:"first_air_date"`
+	Runtime       int    `json:"runtime"`
+	Genres        []struct {
 		Name string `json:"name"`
+	} `json:"genres"`
+	PosterPath   string `json:"poster_path"`
+	BackdropPath string `json:"backdrop_path"`
+	ExternalIDs  struct {
+		IMDBID string `json:"imdb_id"`
+		TVDBID int    `json:"tvdb_id"`
+	} `json:"external_ids"`
+}
+
+// Meta lädt die ausführlichen Daten samt IMDb- und TheTVDB-ID.
+func (t *TMDB) Meta(ctx context.Context, series bool, id int) (Meta, error) {
+	path := "/movie/" + strconv.Itoa(id)
+	if series {
+		path = "/tv/" + strconv.Itoa(id)
 	}
-	err := t.get(ctx, fmt.Sprintf("/tv/%d/season/%d/episode/%d", tvID, season, episode), nil, &r)
-	return r.Name, err
+	var m Meta
+	err := t.get(ctx, path, url.Values{"append_to_response": {"external_ids"}}, &m)
+	return m, err
+}
+
+// Episode sind die Daten einer einzelnen Folge.
+type Episode struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Overview  string `json:"overview"`
+	AirDate   string `json:"air_date"`
+	StillPath string `json:"still_path"`
+}
+
+// Episode lädt eine einzelne Folge.
+func (t *TMDB) Episode(ctx context.Context, tvID, season, episode int) (Episode, error) {
+	var ep Episode
+	err := t.get(ctx, fmt.Sprintf("/tv/%d/season/%d/episode/%d", tvID, season, episode), nil, &ep)
+	return ep, err
+}
+
+// SeasonPoster liefert den Bildpfad des Staffelposters.
+func (t *TMDB) SeasonPoster(ctx context.Context, tvID, season int) (string, error) {
+	var r struct {
+		PosterPath string `json:"poster_path"`
+	}
+	err := t.get(ctx, fmt.Sprintf("/tv/%d/season/%d", tvID, season), nil, &r)
+	return r.PosterPath, err
+}
+
+// Image lädt ein Bild von TMDB (höchstens 20 MB, nur JPEG oder PNG).
+func (t *TMDB) Image(ctx context.Context, path string) ([]byte, error) {
+	if !strings.HasPrefix(path, "/") || strings.Contains(path, "..") {
+		return nil, errors.New("ungültiger Bildpfad")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, t.ImageURL+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := t.HTTP.Do(req)
+	if err != nil {
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
+		return nil, fmt.Errorf("Bild nicht erreichbar: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Bild: TMDB antwortet mit %s", resp.Status)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 20<<20+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > 20<<20 {
+		return nil, errors.New("Bild ist zu groß")
+	}
+	if ct := http.DetectContentType(data); ct != "image/jpeg" && ct != "image/png" {
+		return nil, fmt.Errorf("Bild hat unerwartetes Format %s", ct)
+	}
+	return data, nil
 }

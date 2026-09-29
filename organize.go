@@ -26,7 +26,10 @@ const (
 	StatusError     = "error"
 )
 
-// FileOp ist eine einzelne Datei-Aktion (verschieben oder kopieren).
+// ActionCreate steht im Verlauf für eine neu angelegte Datei (NFO, Bild).
+const ActionCreate = "create"
+
+// FileOp ist eine einzelne Datei-Aktion (verschieben, kopieren oder neu angelegt).
 type FileOp struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
@@ -301,11 +304,17 @@ type Journal struct {
 	SourceDir string     `json:"source_dir"`
 	TargetDir string     `json:"target_dir"`
 	Ops       []FileOp   `json:"ops"`
+	Warnings  []string   `json:"warnings,omitempty"`
 	Undone    *time.Time `json:"undone,omitempty"`
 }
 
+// ExtrasFunc legt nach dem Einsortieren eines Eintrags Zusatzdateien an und
+// liefert die neuen Dateien sowie Hinweise zu Fehlschlägen.
+type ExtrasFunc func(it *Item) (created, warns []string)
+
 // Apply führt die ausgewählten Einträge aus und schreibt ein Journal.
-func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string) (*Journal, string, error) {
+// extras darf nil sein.
+func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string, extras ExtrasFunc) (*Journal, string, error) {
 	dst, _ := filepath.Abs(cfg.TargetDir)
 	src, _ := filepath.Abs(cfg.SourceDir)
 	j := &Journal{Created: time.Now(), SourceDir: src, TargetDir: dst}
@@ -334,6 +343,13 @@ func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string) (*Jou
 				break
 			}
 			j.Ops = append(j.Ops, op)
+		}
+		if it.Status == StatusDone && extras != nil {
+			created, warns := extras(it)
+			for _, p := range created {
+				j.Ops = append(j.Ops, FileOp{Target: p, Action: ActionCreate})
+			}
+			j.Warnings = append(j.Warnings, warns...)
 		}
 	}
 	if len(j.Ops) == 0 {
@@ -386,7 +402,7 @@ func Undo(path string) ([]string, error) {
 		switch op.Action {
 		case ActionMove:
 			err = moveFile(op.Target, op.Source)
-		case ActionCopy:
+		case ActionCopy, ActionCreate:
 			if err = requireRegular(op.Target); err == nil {
 				err = os.Remove(op.Target)
 			}
@@ -412,10 +428,19 @@ func (j *Journal) validate() error {
 		}
 	}
 	for _, op := range j.Ops {
-		if op.Action != ActionMove && op.Action != ActionCopy {
+		if !within(j.TargetDir, op.Target) || op.Target == j.TargetDir {
 			return bad
 		}
-		if !within(j.TargetDir, op.Target) || op.Target == j.TargetDir || !within(j.SourceDir, op.Source) || op.Source == j.SourceDir {
+		switch op.Action {
+		case ActionMove, ActionCopy:
+			if !within(j.SourceDir, op.Source) || op.Source == j.SourceDir {
+				return bad
+			}
+		case ActionCreate:
+			if op.Source != "" {
+				return bad
+			}
+		default:
 			return bad
 		}
 	}

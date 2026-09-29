@@ -174,6 +174,12 @@ th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spa
 .ph-list { display: flex; gap: 6px; flex-wrap: wrap; }
 .ph-list button { font: inherit; font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; border: 2px dashed var(--honey); color: var(--honey-ink); background: transparent; border-radius: 8px; padding: 4px 8px; cursor: pointer; }
 .hint { color: var(--muted); font-size: 13px; }
+.check { display: flex; gap: 10px; align-items: center; font-weight: 600; margin: 6px 0; }
+.check input { width: 20px; height: 20px; accent-color: var(--go); flex: none; }
+.servers { display: grid; gap: 12px; margin-top: 12px; }
+.server { border: 2px solid var(--line); border-radius: 14px; padding: 10px 14px 14px; margin: 0; min-width: 0; }
+.server legend { font-weight: 800; padding: 0 6px; }
+.server .result { margin: 8px 0 0; }
 .hint a { color: var(--honey-ink); }
 code { font-family: ui-monospace, Menlo, Consolas, monospace; background: var(--bg); padding: 1px 4px; border-radius: 4px; }
 .hist { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-top: 2px dashed var(--line); flex-wrap: wrap; }
@@ -351,6 +357,45 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
         <input id="ignore" placeholder="*sample*, *trailer*" spellcheck="false">
       </div>
     </div>
+    <div class="card">
+      <h3 class="label">Mediaserver: Plex, Jellyfin, Kodi</h3>
+      <p class="hint" style="margin-top:0" id="x-hint">Nur für Einträge mit TMDB-Treffer. Vorhandene Dateien bleiben unangetastet, „Rückgängig“ entfernt die angelegten wieder.</p>
+      <label class="check"><input type="checkbox" id="x-nfo" aria-describedby="x-hint"> NFO-Dateien schreiben (Titel, Inhalt, Genres, TMDB- und IMDb-ID)</label>
+      <label class="check"><input type="checkbox" id="x-art" aria-describedby="x-hint"> Poster, Hintergrund- und Vorschaubilder laden</label>
+      <p class="hint">Nach dem Einsortieren lässt der Bär jeden eingetragenen Server die Bibliothek neu einlesen. Leere Adresse heißt: aus.</p>
+      <div class="servers">
+        <fieldset class="server">
+          <legend>Plex</legend>
+          <div class="row">
+            <div class="field"><label for="plex-url">Adresse</label><input id="plex-url" type="url" placeholder="http://192.168.1.10:32400" spellcheck="false" autocomplete="off"></div>
+            <div class="field"><label for="plex-token">Plex-Token</label><input id="plex-token" type="password" spellcheck="false" autocomplete="off"></div>
+            <button type="button" class="btn small" data-test="plex">Testen</button>
+          </div>
+          <p class="hint result" id="plex-result" role="status"></p>
+        </fieldset>
+        <fieldset class="server">
+          <legend>Jellyfin</legend>
+          <div class="row">
+            <div class="field"><label for="jellyfin-url">Adresse</label><input id="jellyfin-url" type="url" placeholder="http://192.168.1.10:8096" spellcheck="false" autocomplete="off"></div>
+            <div class="field"><label for="jellyfin-token">API-Schlüssel</label><input id="jellyfin-token" type="password" spellcheck="false" autocomplete="off"></div>
+            <button type="button" class="btn small" data-test="jellyfin">Testen</button>
+          </div>
+          <p class="hint result" id="jellyfin-result" role="status"></p>
+        </fieldset>
+        <fieldset class="server">
+          <legend>Kodi</legend>
+          <div class="row">
+            <div class="field"><label for="kodi-url">Adresse</label><input id="kodi-url" type="url" placeholder="http://192.168.1.20:8080" spellcheck="false" autocomplete="off"></div>
+            <div class="field"><label for="kodi-user">Benutzer</label><input id="kodi-user" spellcheck="false" autocomplete="off"></div>
+            <div class="field"><label for="kodi-password">Passwort</label><input id="kodi-password" type="password" spellcheck="false" autocomplete="off"></div>
+            <button type="button" class="btn small" data-test="kodi">Testen</button>
+          </div>
+          <p class="hint result" id="kodi-result" role="status"></p>
+        </fieldset>
+      </div>
+      <p class="hint">Den Plex-Token findest du über „XML anzeigen“ bei einem Eintrag in Plex (Parameter <code>X-Plex-Token</code>), den Jellyfin-Schlüssel unter Dashboard › API-Schlüssel. Bei Kodi muss „Steuerung über HTTP erlauben“ an sein.</p>
+    </div>
+
     <div class="row" style="justify-content:end">
       <span class="hint" id="cfgpath"></span>
       <button type="button" class="btn primary" id="save">Speichern</button>
@@ -445,6 +490,7 @@ const STATUS = {
   conflict: "Konflikt", duplicate: "doppelt, eine wählen", same: "liegt schon richtig", done: "erledigt", error: "Fehler",
 };
 const ACTION = { move: "verschieben", copy: "kopieren", skip: "ignorieren" };
+const HIST_ACTION = { ...ACTION, create: "anlegen" };
 const KIND = { video: "Video", companion: "Begleitdatei" };
 
 async function loadConfig() {
@@ -463,8 +509,37 @@ async function loadConfig() {
   renderRules(c.file_rules || []);
   $("#placeholders").innerHTML = state.placeholders.map(p => `<button type="button" data-ph="${p}">{${p}}</button>`).join("");
   $("#offline-hint").hidden = !!c.tmdb_api_key;
+  const x = c.extras || {};
+  $("#x-nfo").checked = !!x.nfo;
+  $("#x-art").checked = !!x.artwork;
+  for (const k of SERVERS) {
+    const srv = x[k] || {};
+    for (const f of ["url", "token", "user", "password"]) if ($(`#${k}-${f}`)) $(`#${k}-${f}`).value = srv[f] || "";
+  }
   preview();
 }
+
+const SERVERS = ["plex", "jellyfin", "kodi"];
+function readServer(k) {
+  const srv = {};
+  for (const f of ["url", "token", "user", "password"]) if ($(`#${k}-${f}`)) srv[f] = $(`#${k}-${f}`).value.trim();
+  return srv;
+}
+function readExtras() {
+  const x = { nfo: $("#x-nfo").checked, artwork: $("#x-art").checked };
+  for (const k of SERVERS) x[k] = readServer(k);
+  return x;
+}
+$$("[data-test]").forEach(b => (b.onclick = async () => {
+  const k = b.dataset.test, out = $(`#${k}-result`);
+  out.textContent = "Frage nach …";
+  try {
+    const r = await api("POST", "/api/mediaserver/test", { kind: k, server: readServer(k) });
+    out.textContent = "✓ " + r.message;
+  } catch (e) {
+    out.textContent = "✗ " + e.message;
+  }
+}));
 
 function renderRules(rules) {
   const opt = (map, v) => Object.entries(map).map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("");
@@ -548,6 +623,7 @@ $("#save").onclick = async () => {
     series_template: $("#tseries").value,
     file_rules: readRules(),
     ignore_patterns: $("#ignore").value.split(",").map(s => s.trim()).filter(Boolean),
+    extras: readExtras(),
   };
   try {
     const r = await api("PUT", "/api/config", cfg);
@@ -656,6 +732,9 @@ function itemHTML(it) {
   const n = it.companions?.length || 0;
   const comps = n ? `<span class="tag s-neutral">+${n} Begleitdatei${n > 1 ? "en" : ""}</span>` : "";
   const action = it.action === "copy" ? `<span class="tag s-offline">wird kopiert</span>` : "";
+  const x = state.cfg?.extras || {};
+  const extraNames = [x.nfo && "NFO", x.artwork && "Bilder"].filter(Boolean).join(" & ");
+  const extras = extraNames && info.tmdb_id && state.online ? `<span class="tag s-neutral">+ ${extraNames}</span>` : "";
   const locked = it.status === "done" || it.status === "same";
   const open = state.open === it.id && !locked;
   return `
@@ -668,7 +747,7 @@ function itemHTML(it) {
       <div class="meta" id="st-${it.id}">
         <span class="tag s-${it.status}">${STATUS[it.status]}</span>
         <span class="tag s-neutral">${info.series ? "Serie" : "Film"}</span>
-        ${comps}${action}
+        ${comps}${extras}${action}
         ${it.message ? `<span class="msg">${esc(it.message)}</span>` : ""}
       </div>
     </div>
@@ -776,9 +855,12 @@ $("#apply").onclick = async () => {
     $("#results").setAttribute("tabindex", "-1");
     $("#results").focus();
     const errs = state.items.filter(i => i.status === "error").length;
-    if (errs) bear("confused", `Fertig, aber ${errs} Datei(en) hatten Probleme. Details stehen beim jeweiligen Eintrag.`, 5000);
-    else if (state.items.length) bear("happy", `Fertig! ${r.done} Videos sind einsortiert und aus der Liste verschwunden. Übrig ist, was noch geprüft werden will.`, 3500);
-    else bear("happy", `Fertig! Alle ${r.done} Videos sind ordentlich einsortiert.`, 3000);
+    const warns = r.warnings?.length ? ` ${r.warnings.length} Zusatzdatei(en) fehlen: ${r.warnings.slice(0, 3).join("; ")}.` : "";
+    const servers = r.refreshed?.length ? " " + r.refreshed.join(". ") + "." : "";
+    if (errs) bear("confused", `Fertig, aber ${errs} Datei(en) hatten Probleme. Details stehen beim jeweiligen Eintrag.${warns}${servers}`, 6000);
+    else if (warns) bear("confused", `Fertig! ${r.done} Videos sind einsortiert.${warns}${servers}`, 6000);
+    else if (state.items.length) bear("happy", `Fertig! ${r.done} Videos sind einsortiert und aus der Liste verschwunden. Übrig ist, was noch geprüft werden will.${servers}`, 3500);
+    else bear("happy", `Fertig! Alle ${r.done} Videos sind ordentlich einsortiert.${servers}`, 3000);
   } catch (e) {
     bear("confused", e.message, 4000);
   } finally {
@@ -794,14 +876,14 @@ async function loadHistory() {
       <div>
         <h3>${new Date(h.created).toLocaleString("de-DE")}</h3> · ${h.ops} Datei${h.ops === 1 ? "" : "en"}
         ${h.undone ? `<span class="tag s-neutral">rückgängig gemacht</span>` : ""}
-        <ul>${(h.sample || []).map(o => `<li>${ACTION[o.action]}: ${esc(o.target)}</li>`).join("")}${h.ops > 5 ? `<li>und ${h.ops - 5} weitere</li>` : ""}</ul>
+        <ul>${(h.sample || []).map(o => `<li>${HIST_ACTION[o.action]}: ${esc(o.target)}</li>`).join("")}${h.ops > 5 ? `<li>und ${h.ops - 5} weitere</li>` : ""}</ul>
       </div>
       <button type="button" class="btn small" data-undo="${esc(h.file)}" ${h.undone ? "disabled" : ""}>${deco("↩ ")}Rückgängig machen</button>
     </div>`).join("") : `<div class="empty"><div class="big" aria-hidden="true">📜</div>Noch nichts einsortiert.</div>`;
 }
 $("#history").addEventListener("click", async e => {
   const b = e.target.closest("[data-undo]");
-  if (!b || !confirm("Diesen Lauf rückgängig machen? Verschobenes wandert zurück, Kopien werden gelöscht.")) return;
+  if (!b || !confirm("Diesen Lauf rückgängig machen? Verschobenes wandert zurück, Kopien und neu angelegte NFO-Dateien und Bilder werden gelöscht.")) return;
   try {
     const r = await api("POST", "/api/undo", { file: b.dataset.undo });
     state.items = []; state.sel.clear(); render(null);
