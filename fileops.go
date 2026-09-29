@@ -30,6 +30,9 @@ func moveFile(src, dst string) error {
 		return err
 	}
 	if exists(dst) {
+		if caseOnly(src, dst) {
+			return os.Rename(src, dst)
+		}
 		return errExists
 	}
 	// #nosec G301 -- Bibliotheksordner müssen für Mediaserver lesbar sein
@@ -62,6 +65,17 @@ func moveFile(src, dst string) error {
 		return err
 	}
 	return nil
+}
+
+// caseOnly meldet, ob dst nur in der Groß-/Kleinschreibung von src abweicht und
+// auf derselben Datei landet (Windows, macOS). Dann ist Umbenennen erlaubt.
+func caseOnly(src, dst string) bool {
+	if src == dst || !strings.EqualFold(src, dst) {
+		return false
+	}
+	a, err1 := os.Stat(src)
+	b, err2 := os.Stat(dst)
+	return err1 == nil && err2 == nil && os.SameFile(a, b)
 }
 
 // isCrossDevice meldet, ob ein Fehler "anderes Laufwerk" bedeutet.

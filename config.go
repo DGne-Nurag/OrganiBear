@@ -50,6 +50,17 @@ type Config struct {
 	// GuideSkipped: Die Anleitung zum TMDB-Key wurde mit „Später“ weggeklickt
 	// und öffnet sich beim Start nicht mehr von selbst.
 	GuideSkipped bool `json:"tmdb_guide_skipped,omitempty"`
+	// InPlace: „Nur umbenennen“. Die Bibliothek entsteht im Quellordner selbst,
+	// TargetDir bleibt für später gemerkt.
+	InPlace bool `json:"in_place,omitempty"`
+}
+
+// Target ist der Ordner, in den einsortiert wird.
+func (c Config) Target() string {
+	if c.InPlace {
+		return c.SourceDir
+	}
+	return c.TargetDir
 }
 
 // TheTVDB ist die zweite Quelle für Serien, wenn TMDB nichts findet. Den

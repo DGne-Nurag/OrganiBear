@@ -282,6 +282,7 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SourceDir string `json:"source_dir"`
 		TargetDir string `json:"target_dir"`
+		InPlace   *bool  `json:"in_place"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -296,6 +297,9 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 	if req.TargetDir != "" {
 		cfg.TargetDir = req.TargetDir
 	}
+	if req.InPlace != nil {
+		cfg.InPlace = *req.InPlace
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
 	items, err := Scan(ctx, cfg, s.db)
@@ -304,7 +308,7 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Ordner merken
-	if cfg.SourceDir != s.cfg.SourceDir || cfg.TargetDir != s.cfg.TargetDir {
+	if cfg.SourceDir != s.cfg.SourceDir || cfg.TargetDir != s.cfg.TargetDir || cfg.InPlace != s.cfg.InPlace {
 		s.cfg = cfg
 		if err := SaveConfig(s.cfgPath, cfg); err != nil {
 			log.Printf("Ordner konnten nicht gespeichert werden: %v", err)

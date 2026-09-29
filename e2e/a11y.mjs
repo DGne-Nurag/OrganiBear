@@ -7,7 +7,7 @@
 //   cd e2e && npm ci && npx playwright install chromium && npm test
 
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -243,6 +243,35 @@ async function run() {
 
     // Programmfenster: Wails stellt window.runtime bereit. Hier nachgebaut, um
     // Drag & Drop auf Quelle und Ziel und das Öffnen externer Links zu prüfen.
+    console.log("\nNur umbenennen");
+    {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const page = await context.newPage();
+      page.on("dialog", d => d.accept());
+      page.on("pageerror", e => fail("JavaScript-Fehler: " + e.message));
+      await page.goto(url);
+      const src = makeFixtures();
+      await page.check('input[name="mode"][value="inplace"]');
+      (await page.locator("#dst").isVisible()) ? fail("Zielfeld bleibt sichtbar") : ok("Zielfeld ausgeblendet");
+      await axe(page, "Nur umbenennen");
+      await page.fill("#src", src);
+      await page.click("#scan");
+      await page.waitForSelector(".item");
+      await page.click("#apply");
+      await page.waitForFunction(() => /umbenannt/.test(document.querySelector("#say").textContent), null, { timeout: 5000 })
+        .catch(() => fail("keine Fertig-Meldung: " + "umbenannt"));
+      existsSync(join(src, "Filme")) && !existsSync(join(tmp, "out", "Filme")) ? ok("Dateien bleiben im Quellordner") : fail("Dateien wurden verschoben");
+      await page.reload();
+      (await page.isChecked('input[name="mode"][value="inplace"]')) ? ok("Auswahl wird gemerkt") : fail("Auswahl vergessen");
+      await page.check('input[name="mode"][value="sort"]');
+      await page.waitForTimeout(300);
+      await page.evaluate(async () => {
+        const c = (await (await fetch("/api/config")).json()).config;
+        await fetch("/api/config", { method: "PUT", headers: { "X-OrganiBear": "1" }, body: JSON.stringify({ ...c, in_place: false }) });
+      });
+      await context.close();
+    }
+
     console.log("\nProgrammfenster (Drag & Drop)");
     {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
