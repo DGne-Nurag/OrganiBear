@@ -89,6 +89,15 @@ nav button[aria-current] { background: var(--honey); color: var(--on-honey); }
 @keyframes hop { 50% { transform: translateY(-10px); } }
 #bear[data-mood=confused] .head { transform: rotate(-9deg); transform-origin: 60px 100px; transition: transform .3s; }
 #bear[data-mood=confused] .question { opacity: 1; }
+#bear .sleep-eyes, #bear .zz { opacity: 0; }
+#bear[data-mood=sleep] .eyes { opacity: 0; animation: none; }
+#bear[data-mood=sleep] .sleep-eyes, #bear[data-mood=sleep] .zz { opacity: 1; }
+#bear[data-mood=sleep] .zz { animation: zz 2.4s ease-in-out infinite; }
+@keyframes zz { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, -4px); } }
+header .quit { align-self: center; }
+.bye { text-align: center; padding: 40px 16px; }
+.bye h2 { margin: 0 0 8px; }
+.bye h2:focus { outline: none; } /* nur Ziel für den Screenreader, nicht bedienbar */
 
 .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin-bottom: 16px; }
 h2.label, h3.label { margin: 0 0 8px; }
@@ -232,8 +241,13 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
           </g>
           <ellipse class="nose" cx="60" cy="74" rx="7.5" ry="5.5" fill="#2b1a10"/>
           <path d="M60 79 q0 6 -7 7 M60 79 q0 6 7 7" stroke="#2b1a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <g class="sleep-eyes" stroke="#2b1a10" stroke-width="3.5" fill="none" stroke-linecap="round">
+            <path d="M38 58 q6 5 12 0"/>
+            <path d="M70 58 q6 5 12 0"/>
+          </g>
         </g>
         <text class="question" x="100" y="22" font-size="26" font-weight="900" fill="var(--honey)">?</text>
+        <text class="zz" x="98" y="24" font-size="20" font-weight="900" fill="var(--honey)">z<tspan font-size="14" dy="-8">z</tspan></text>
       </svg>
       <div>
         <h1>Organi<span>Bear</span></h1>
@@ -245,7 +259,14 @@ dialog::backdrop { background: rgba(59, 38, 22, .45); }
       <button type="button" data-tab="settings" aria-controls="tab-settings">Einstellungen</button>
       <button type="button" data-tab="history" aria-controls="tab-history">Verlauf</button>
     </nav>
+    <button type="button" class="btn small quit" id="quit">Beenden</button>
   </header>
+
+  <section id="bye" class="card bye" aria-labelledby="h-bye" hidden>
+    <h2 id="h-bye" tabindex="-1">OrganiBear ist beendet</h2>
+    <p id="bye-text">Du kannst diesen Tab jetzt schließen.</p>
+    <p>Zum Weitermachen startest du OrganiBear einfach neu.</p>
+  </section>
 
   <!-- Sortieren -->
   <section id="tab-sort" aria-labelledby="h-sort">
@@ -501,7 +522,12 @@ let previewTimer;
 function preview() {
   clearTimeout(previewTimer);
   previewTimer = setTimeout(async () => {
-    const r = await api("POST", "/api/template-preview", { movie_template: $("#tmovie").value, series_template: $("#tseries").value });
+    let r;
+    try {
+      r = await api("POST", "/api/template-preview", { movie_template: $("#tmovie").value, series_template: $("#tseries").value });
+    } catch {
+      return; // Programm beendet oder kurz weg: Vorschau bleibt, wie sie ist
+    }
     for (const k of ["movie", "series"]) {
       const el = $("#p" + k), err = r[k + "_error"];
       el.classList.toggle("err", !!err);
@@ -742,6 +768,7 @@ $("#apply").onclick = async () => {
   const msg = `${chosen.length} Videos (plus Begleitdateien) werden ${copies === chosen.length ? "kopiert" : copies ? "verschoben bzw. kopiert" : "verschoben"}.\nÜber den Verlauf lässt sich das rückgängig machen.\n\nLos geht's?`;
   if (!confirm(msg)) return;
   bear("sniff", "Ich trage alles an seinen Platz …");
+  state.applying = true;
   try {
     const r = await api("POST", "/api/apply", { ids: [...state.sel] });
     state.sel.clear();
@@ -754,6 +781,8 @@ $("#apply").onclick = async () => {
     else bear("happy", `Fertig! Alle ${r.done} Videos sind ordentlich einsortiert.`, 3000);
   } catch (e) {
     bear("confused", e.message, 4000);
+  } finally {
+    state.applying = false;
   }
 };
 
@@ -805,6 +834,38 @@ $$("[data-pick]").forEach(b => (b.onclick = () => { pickTarget = $("#" + b.datas
 $("#pk-dirs").addEventListener("click", e => { const b = e.target.closest("[data-dir]"); if (b) openDir(b.dataset.dir); });
 $("#pk-cancel").onclick = () => $("#picker").close();
 $("#pk-ok").onclick = () => { pickTarget.value = $("#pk-path").dataset.path; $("#picker").close(); };
+
+// Beenden: per Knopf, oder das Programm hat sich selbst schlafen gelegt.
+// Solange der Tab offen ist, meldet er sich alle 30 Sekunden beim Programm.
+function goodbye(text) {
+  clearInterval(heartbeat);
+  clearTimeout(previewTimer);
+  if ($("#picker").open) $("#picker").close();
+  $$("main > section, main > footer, nav, #quit, #bar").forEach(el => (el.hidden = true));
+  $("#bye-text").textContent = text;
+  $("#bye").hidden = false;
+  bear("sleep", "Zzz … Gute Nacht!");
+  $("#h-bye").focus();
+}
+let misses = 0;
+async function ping() {
+  try {
+    await api("POST", "/api/ping");
+    misses = 0;
+  } catch {
+    if (++misses >= 2) goodbye("Das Programm läuft nicht mehr, vermutlich war eine Weile kein Tab offen. Du kannst diesen Tab schließen.");
+  }
+}
+const heartbeat = setInterval(ping, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && $("#bye").hidden) ping(); });
+$("#quit").onclick = async () => {
+  const msg = state.applying
+    ? "Der Bär sortiert gerade noch. Er macht das fertig und beendet sich dann. Beenden?"
+    : "OrganiBear beenden?";
+  if (!confirm(msg)) return;
+  try { await api("POST", "/api/quit"); } catch { /* schon weg, auch gut */ }
+  goodbye("Gute Nacht! Du kannst diesen Tab jetzt schließen.");
+};
 
 loadConfig().then(refreshItems).catch(e => bear("confused", e.message));
 </script>

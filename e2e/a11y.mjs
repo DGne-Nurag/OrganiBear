@@ -152,6 +152,26 @@ async function run() {
       await axe(page, "Treffer und Suche");
       await context.close();
     }
+
+    // Zum Schluss: Beenden-Knopf. Danach muss sich das Programm selbst beenden.
+    console.log("\nBeenden");
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    page.on("dialog", d => d.accept());
+    page.on("pageerror", e => fail("JavaScript-Fehler: " + e.message));
+    await page.goto(url);
+    await page.click("#quit");
+    await page.waitForSelector("#bye:not([hidden])");
+    const f4 = await focused(page);
+    f4 === "h-bye" ? ok("Fokus auf der Abschiedsmeldung") : fail("Fokus nach Beenden: " + f4);
+    await axe(page, "Beendet");
+    const exited = await new Promise(resolve => {
+      if (proc.exitCode !== null) return resolve(true);
+      proc.once("exit", () => resolve(true));
+      setTimeout(() => resolve(false), 5000);
+    });
+    exited ? ok("Programm hat sich beendet") : fail("Programm läuft nach dem Beenden weiter");
+    await context.close();
   } finally {
     await browser.close();
     proc.kill();

@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -31,6 +32,11 @@ type Server struct {
 	items      []*Item
 	static     fs.FS
 	token      string // Zugangsschlüssel pro Programmstart
+
+	quit     chan struct{} // wird geschlossen, wenn das Programm enden soll
+	quitOnce sync.Once
+	lastSeen atomic.Int64 // letzte Anfrage des Browsers (UnixNano), 0 = noch nie
+	inFlight atomic.Int64 // laufende Anfragen, z. B. ein langes Einsortieren
 }
 
 func NewServer(cfg Config, cfgPath string, static fs.FS) *Server {
@@ -45,7 +51,24 @@ func NewServer(cfg Config, cfgPath string, static fs.FS) *Server {
 		journalDir: filepath.Join(filepath.Dir(cfgPath), "organibear-verlauf"),
 		db:         NewTMDB(cfg.TMDBKey, cfg.Language),
 		static:     static,
+		quit:       make(chan struct{}),
 	}
+}
+
+// Quit bittet das Programm, sich zu beenden. Mehrfaches Aufrufen schadet nicht.
+func (s *Server) Quit() { s.quitOnce.Do(func() { close(s.quit) }) }
+
+// Done wird geschlossen, sobald jemand Quit aufgerufen hat.
+func (s *Server) Done() <-chan struct{} { return s.quit }
+
+// IdleFor meldet, wie lange der Browser schon nichts mehr von sich hören ließ.
+// Solange noch nie ein Browser da war oder eine Anfrage läuft, ist das 0.
+func (s *Server) IdleFor(now time.Time) time.Duration {
+	last := s.lastSeen.Load()
+	if last == 0 || s.inFlight.Load() > 0 {
+		return 0
+	}
+	return now.Sub(time.Unix(0, last))
 }
 
 func (s *Server) Handler() http.Handler {
@@ -60,6 +83,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/history", s.history)
 	mux.HandleFunc("POST /api/undo", s.undo)
 	mux.HandleFunc("GET /api/dirs", s.dirs)
+	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	mux.HandleFunc("POST /api/quit", s.quitHandler)
 	mux.Handle("GET /", http.FileServerFS(s.static))
 	return s.guard(mux)
 }
@@ -113,8 +138,21 @@ func (s *Server) guard(next http.Handler) http.Handler {
 			http.Error(w, "fehlender Header", http.StatusForbidden)
 			return
 		}
+		s.inFlight.Add(1)
+		s.lastSeen.Store(time.Now().UnixNano())
+		defer func() {
+			s.lastSeen.Store(time.Now().UnixNano())
+			s.inFlight.Add(-1)
+		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+// quitHandler beendet das Programm über den Knopf im Webinterface. Ein laufendes
+// Einsortieren wird vorher noch fertig (siehe main).
+func (s *Server) quitHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
+	s.Quit()
 }
 
 func denied(w http.ResponseWriter) {
