@@ -35,14 +35,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - { goos: windows, goarch: amd64, kind: desktop, runner: ubuntu-latest, name: windows-amd64.exe }
-          - { goos: darwin, goarch: arm64, kind: desktop, runner: macos-latest, name: macos-arm64 }
-          - { goos: darwin, goarch: amd64, kind: desktop, runner: macos-latest, name: macos-amd64 }
-          - { goos: linux, goarch: amd64, kind: desktop, runner: ubuntu-latest, name: linux-amd64-desktop }
-          - { goos: linux, goarch: arm64, kind: desktop, runner: ubuntu-24.04-arm, name: linux-arm64-desktop }
-          # Ohne Fenster: läuft auch ohne GTK/WebKit (Server, NAS, Raspberry Pi)
-          - { goos: linux, goarch: amd64, kind: browser, runner: ubuntu-latest, name: linux-amd64 }
-          - { goos: linux, goarch: arm64, kind: browser, runner: ubuntu-latest, name: linux-arm64 }
+          - { goos: windows, goarch: amd64, kind: desktop, runner: ubuntu-latest, name: OrganiBear-Windows.exe }
+          - { goos: darwin, goarch: arm64, kind: desktop, runner: macos-latest, name: OrganiBear-Mac-AppleSilicon }
+          - { goos: darwin, goarch: amd64, kind: desktop, runner: macos-latest, name: OrganiBear-Mac-Intel }
+          - { goos: linux, goarch: amd64, kind: desktop, runner: ubuntu-latest, name: OrganiBear-Linux }
+          - { goos: linux, goarch: arm64, kind: desktop, runner: ubuntu-24.04-arm, name: OrganiBear-Linux-ARM }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -56,7 +53,7 @@ jobs:
       - run: |
           if [ -z "$OS_KEY" ]; then echo "::warning::Secret OPENSUBTITLES_API_KEY fehlt, das Release kann keine Untertitel laden"; fi
           if [ -z "$TVDB_KEY" ]; then echo "::warning::Secret THETVDB_API_KEY fehlt, das Release kann TheTVDB nicht nutzen"; fi
-          scripts/build.sh "dist/organibear-${GITHUB_REF_NAME}-${NAME}"
+          scripts/build.sh "dist/${NAME}"
         env:
           OS_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
           TVDB_KEY: ${{ secrets.THETVDB_API_KEY }}
@@ -67,7 +64,7 @@ jobs:
           NAME: ${{ matrix.name }}
       - uses: actions/upload-artifact@v7
         with:
-          name: organibear-${{ matrix.name }}
+          name: ${{ matrix.name }}
           path: dist/*
 
   release:
@@ -76,18 +73,21 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7 # für den Download-Text
+        with:
+          sparse-checkout: .github
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
       - name: Prüfsummen
         working-directory: dist
-        run: sha256sum organibear-* THIRD_PARTY_NOTICES.txt > SHA256SUMS && cat SHA256SUMS
+        run: sha256sum OrganiBear-* THIRD_PARTY_NOTICES.txt > SHA256SUMS && cat SHA256SUMS
       - name: Release anlegen
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          flags=(--generate-notes --title "OrganiBear ${GITHUB_REF_NAME}")
+          flags=(--generate-notes --notes-file .github/release-download.md --title "OrganiBear ${GITHUB_REF_NAME}")
           # Tags mit Bindestrich (v0.2.0-rc1) gelten als Vorabversion
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             flags+=(--prerelease)
