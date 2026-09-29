@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -136,6 +137,22 @@ func TestFetchSubtitles(t *testing.T) {
 	seen = nil
 	if created, _ := FetchSubtitles(context.Background(), cfg, subs, it); created != nil || len(seen) > 0 {
 		t.Errorf("zweiter Lauf: %v %v", created, seen)
+	}
+}
+
+// Nach einer abgelehnten Anmeldung schickt der Bär dieselben Zugangsdaten
+// nicht noch einmal, auch nicht für die nächste Datei.
+func TestLoginRejectedOnce(t *testing.T) {
+	var seen []string
+	subs := fakeOpenSubs(t, 5, &seen)
+	subs.Password = "falsch"
+	for i := 0; i < 3; i++ {
+		if err := subs.Login(context.Background()); !errors.Is(err, errLoginRejected) {
+			t.Fatalf("Versuch %d: %v", i, err)
+		}
+	}
+	if len(seen) != 1 {
+		t.Fatalf("Anmeldungen: %v", seen)
 	}
 }
 

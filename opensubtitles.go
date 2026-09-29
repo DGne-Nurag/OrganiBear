@@ -25,6 +25,7 @@ import (
 
 var (
 	errQuota           = errors.New("Tageslimit bei OpenSubtitles erreicht")
+	errLoginRejected   = errors.New("OpenSubtitles lehnt Benutzer oder Passwort ab, bitte in den Einstellungen prüfen")
 	errUnavailableSubs = errors.New("diese OrganiBear-Version enthält keinen OpenSubtitles-Zugang (nur in den offiziellen Releases)")
 )
 
@@ -38,6 +39,7 @@ type OpenSubs struct {
 
 	mu        sync.Mutex
 	token     string    // nach dem Anmelden
+	loginErr  error     // abgelehnte Anmeldung: OpenSubtitles will danach keine weiteren Versuche
 	exhausted bool      // Tageslimit erreicht, für diesen Lauf nichts mehr laden
 	last      time.Time // letzte Anfrage, OpenSubtitles erlaubt 5 pro Sekunde
 	gap       time.Duration
@@ -126,7 +128,7 @@ func (o *OpenSubs) do(ctx context.Context, method, path string, q url.Values, bo
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 		if path == "/login" {
-			return errors.New("OpenSubtitles lehnt Benutzer oder Passwort ab")
+			return errLoginRejected
 		}
 		return errors.New("OpenSubtitles lehnt die Anfrage ab")
 	case resp.StatusCode == http.StatusNotAcceptable:
@@ -148,16 +150,26 @@ func (o *OpenSubs) Login(ctx context.Context) error {
 		return nil
 	}
 	o.mu.Lock()
-	has := o.token != ""
+	has, rejected := o.token != "", o.loginErr
 	o.mu.Unlock()
 	if has {
 		return nil
+	}
+	if rejected != nil {
+		return rejected
 	}
 	var r struct {
 		Token   string `json:"token"`
 		BaseURL string `json:"base_url"`
 	}
 	if err := o.do(ctx, http.MethodPost, "/login", nil, map[string]string{"username": o.User, "password": o.Password}, &r); err != nil {
+		// Laut API-Doku ist die Anmeldung teuer: nach einer Ablehnung dieselben
+		// Zugangsdaten nicht noch einmal schicken, für den Rest des Laufs gilt der Fehler.
+		if errors.Is(err, errLoginRejected) {
+			o.mu.Lock()
+			o.loginErr = err
+			o.mu.Unlock()
+		}
 		return err
 	}
 	o.mu.Lock()
