@@ -9,11 +9,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
           check-latest: true
+          cache: false # keine Abhängigkeiten, also kein go.sum
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
@@ -29,17 +30,18 @@ jobs:
           - { goos: darwin, goarch: amd64, ext: "" }
           - { goos: linux, goarch: amd64, ext: "" }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
           check-latest: true
+          cache: false # keine Abhängigkeiten, also kein go.sum
       - run: go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_SHA::7}" -o dist/organibear-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: organibear-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
