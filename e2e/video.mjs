@@ -55,6 +55,31 @@ const proc = spawn(bin, ["-config", join(tmp, "cfg.json"), "-no-browser", "-addr
 const W = 1280, H = 720;
 const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 
+// Vorher: die Dateien, wie sie im Download-Ordner liegen. Der Kram, den der Bär
+// wegräumt (Qualität, Codec, Gruppe …), ist rot markiert.
+const junk = /(\.2160p|\.720p|\.UHD|\.BluRay|\.x265|\.x264|\.HDTV|-GRP|\[Grp\] | \[720p\])/g;
+const messWin = () => {
+  const names = files.filter(f => !f.endsWith(".srt")).map(f => f.split("/").pop());
+  const rows = names.map(n => `<li>🎞️ ${esc(n).replace(junk, m => `<span class="junk">${m}</span>`)}</li>`).join("");
+  return `<div class="win mess"><div class="tbar"><i></i><i></i><i></i><b>📁 Downloads</b></div><ul>${rows}</ul></div>`;
+};
+// Nachher: Ordnerbaum der Bibliothek, Zeile für Zeile eingeblendet.
+const treeRows = paths => {
+  const rows = [], seen = new Set();
+  for (const p of paths) {
+    const parts = p.split("/");
+    parts.forEach((name, i) => {
+      const key = parts.slice(0, i + 1).join("/");
+      if (seen.has(key)) return;
+      seen.add(key);
+      const dir = i < parts.length - 1;
+      const icon = dir ? "📁" : /\.srt$/.test(name) ? "💬" : "🎬";
+      rows.push(`<li class="${dir ? "dir" : "file"}" style="padding-left:${i * 26}px;animation-delay:${rows.length * 0.18}s">${icon} ${esc(name)}</li>`);
+    });
+  }
+  return rows.join("");
+};
+
 try {
   const url = await new Promise((resolve, reject) => {
     let out = "";
@@ -104,7 +129,28 @@ try {
 #vcard .sub { font-size: 26px; margin: 0 0 1em; }
 #vcard ul { list-style: none; padding: 18px 28px; margin: 0; background: #fff; border: 3px solid #e8d3b5; border-radius: 18px; text-align: left;
   font: 20px/1.6 ui-monospace, monospace; min-width: 640px; }
-#vcard img { width: 150px; height: 150px; }`;
+#vcard img { width: 150px; height: 150px; }
+#vcard .ba { display: flex; align-items: center; gap: 28px; }
+#vcard .win { background: #fff; border: 3px solid #e8d3b5; border-radius: 16px; box-shadow: 0 14px 40px #7a4a2422; overflow: hidden; text-align: left; }
+#vcard .win .tbar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fdf0da; border-bottom: 2px solid #e8d3b5; font: 700 20px system-ui, sans-serif; }
+#vcard .win .tbar i { width: 12px; height: 12px; border-radius: 50%; background: #e8d3b5; display: inline-block; }
+#vcard .win .tbar b { margin-left: 8px; }
+#vcard .win ul { list-style: none; margin: 0; padding: 12px 18px; border: 0; border-radius: 0; background: none; min-width: 0; font: 18px/1.75 ui-monospace, monospace; }
+#vcard .win li { white-space: nowrap; }
+#vcard .mess li { color: #3b2616; }
+#vcard .mess li:nth-child(odd) { transform: translateX(10px) rotate(-.6deg); }
+#vcard .mess li:nth-child(3n) { transform: translateX(-6px) rotate(.8deg); }
+#vcard .junk { color: #c0392b; background: #fde2de; border-radius: 4px; padding: 0 2px; }
+#vcard .win ul.tree { font-size: 15px; line-height: 1.5; padding: 10px 18px; }
+#vcard .tree li { opacity: 0; animation: pop .35s ease forwards; }
+#vcard .tree .dir { font-weight: 700; }
+#vcard .tree .file { color: #24613d; }
+@keyframes pop { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+#vcard .small { transform: scale(.72); transform-origin: right center; opacity: .75; margin-left: -120px; }
+#vcard .arrow { display: grid; justify-items: center; gap: 6px; font: 800 20px system-ui, sans-serif; color: #8a5208; }
+#vcard .arrow img { width: 84px; height: 84px; }
+#vcard .arrow span { font-size: 54px; line-height: 1; }
+#vcard .head { font-size: 34px; font-weight: 800; margin: 0 0 18px; text-align: center; }`;
     document.head.append(st);
     const d = document.createElement("div");
     d.id = "vstage";
@@ -145,9 +191,8 @@ try {
   await wait(3000);
 
   // 2. Vorher
-  const before = files.filter(f => !f.endsWith(".srt")).map(f => f.split("/").pop());
-  await card(`<div><p class="sub">Vorher: dein Download-Ordner 😵</p><ul>${before.map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>`);
-  await wait(4000);
+  await card(`<div><p class="head">Vorher: Durcheinander im Download-Ordner 😵</p>${messWin()}</div>`);
+  await wait(4500);
   await card(null);
   await wait(600);
 
@@ -184,8 +229,11 @@ try {
   // 6. Nachher
   const after = walk(dst).map(p => relative(dst, p)).sort();
   await cap("");
-  await card(`<div><p class="sub">Nachher: ordentlich sortiert 🎉</p><ul style="font-size:17px">${after.map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>`);
-  await wait(5000);
+  await card(`<div><p class="head">Nachher: jeder Film und jede Serie in ihrem Ordner 🎉</p>
+<div class="ba"><div class="small">${messWin()}</div>
+<div class="arrow"><img src="icon.png" alt=""><span>➜</span></div>
+<div class="win"><div class="tbar"><i></i><i></i><i></i><b>📁 Bibliothek</b></div><ul class="tree">${treeRows(after)}</ul></div></div></div>`);
+  await wait(6500);
   await card(null);
   await wait(500);
 
