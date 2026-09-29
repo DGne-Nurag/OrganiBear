@@ -49,10 +49,17 @@ func NewServer(cfg Config, cfgPath string, static fs.FS) *Server {
 		cfg:        cfg,
 		cfgPath:    cfgPath,
 		journalDir: filepath.Join(filepath.Dir(cfgPath), "organibear-verlauf"),
-		db:         NewTMDB(cfg.TMDBKey, cfg.Language),
+		db:         newDB(cfg),
 		static:     static,
 		quit:       make(chan struct{}),
 	}
+}
+
+// newDB baut die Datenquellen: TMDB und, falls eingeschaltet, TheTVDB.
+func newDB(cfg Config) *TMDB {
+	db := NewTMDB(cfg.TMDBKey, cfg.Language)
+	db.TVDB = NewTVDB(cfg.TheTVDB, cfg.Language)
+	return db
 }
 
 // Quit bittet das Programm, sich zu beenden. Mehrfaches Aufrufen schadet nicht.
@@ -187,7 +194,7 @@ func (s *Server) getConfig(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	writeJSON(w, map[string]any{"config": s.cfg, "path": s.cfgPath, "placeholders": Placeholders,
-		"subtitles_available": openSubtitlesKey != ""})
+		"subtitles_available": openSubtitlesKey != "", "tvdb_available": tvdbKey != ""})
 }
 
 func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
@@ -212,8 +219,8 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	if cfg.TMDBKey != s.cfg.TMDBKey || cfg.Language != s.cfg.Language {
-		s.db = NewTMDB(cfg.TMDBKey, cfg.Language)
+	if cfg.TMDBKey != s.cfg.TMDBKey || cfg.Language != s.cfg.Language || cfg.TheTVDB != s.cfg.TheTVDB {
+		s.db = newDB(cfg)
 	}
 	s.cfg = cfg
 	PlanTargets(s.cfg, s.items)
@@ -291,6 +298,7 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	var req struct {
 		CandidateID int        `json:"candidate_id"`
+		Source      string     `json:"source"` // "tvdb" für Treffer von TheTVDB, sonst TMDB
 		Query       string     `json:"query"`
 		Year        int        `json:"year"`
 		Series      *bool      `json:"series"`
@@ -327,7 +335,12 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 		}
 		it.Info.Season, it.Info.Episode, it.Info.EpisodeEnd, it.Info.EpisodeTitle = req.Pick.Season, req.Pick.Episode, 0, ""
 		it.Message = ""
-		if it.Info.TMDBID > 0 && s.db.Enabled() {
+		switch {
+		case it.Info.Source == "tvdb" && s.db.TVDB.Enabled():
+			if name, err := s.db.TVDB.EpisodeTitle(ctx, it.Info.TVDBID, req.Pick.Season, req.Pick.Episode); err == nil {
+				it.Info.EpisodeTitle = name
+			}
+		case it.Info.TMDBID > 0 && s.db.Enabled():
 			if name, err := s.db.EpisodeTitle(ctx, it.Info.TMDBID, req.Pick.Season, req.Pick.Episode); err == nil {
 				it.Info.EpisodeTitle = name
 			}
@@ -344,8 +357,9 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 		Lookup(ctx, s.db, it, req.Query, req.Year)
 	case req.CandidateID != 0:
 		for _, c := range it.Candidates {
-			if c.ID == req.CandidateID {
+			if c.ID == req.CandidateID && (c.Source == "tvdb") == (req.Source == "tvdb") {
 				ApplyCandidate(ctx, s.db, it, c)
+				break
 			}
 		}
 	}

@@ -19,6 +19,8 @@ type Parsed struct {
 	Resolution   string `json:"resolution,omitempty"`
 	Part         int    `json:"part,omitempty"`     // Teil eines mehrteiligen Films (CD1, part2 …)
 	Absolute     int    `json:"absolute,omitempty"` // fortlaufende Folgennummer ohne Staffel (Anime)
+	IMDBID       string `json:"imdb_id,omitempty"`  // z. B. tt0133093, wenn im Namen
+	TMDBID       int    `json:"tmdb_id,omitempty"`  // aus "{tmdb-603}"
 }
 
 var (
@@ -38,8 +40,11 @@ var (
 	rePartSure = regexp.MustCompile(`(?i)\b(?:cd|dis[ck]|pt)[ -]?(\d{1,2})\b`)
 	// Fortlaufende Folgennummern ohne Staffel: "One.Piece.E1071", "Folge 12",
 	// "[Gruppe] One Piece - 1071 [1080p]".
-	reAbsEp     = regexp.MustCompile(`(?i)(?:^|\s)(?:e|ep|folge)[ -]?(\d{1,4})\b`)
-	reAbsAnime  = regexp.MustCompile(`\s-\s(\d{2,4})(?:v\d)?(?:\s|$)`)
+	reAbsEp    = regexp.MustCompile(`(?i)(?:^|\s)(?:e|ep|folge)[ -]?(\d{1,4})\b`)
+	reAbsAnime = regexp.MustCompile(`\s-\s(\d{2,4})(?:v\d)?(?:\s|$)`)
+	// IDs im Namen, auch in der Plex/Jellyfin-Schreibweise "{imdb-tt0133093}" oder "[tmdbid=603]".
+	reIMDB      = regexp.MustCompile(`(?i)[\[{(]?\s*(?:imdb(?:id)?\s*[-=:]\s*)?\b(tt\d{7,9})\b\s*[\]})]?`)
+	reTMDBID    = regexp.MustCompile(`(?i)[\[{(]\s*tmdb(?:id)?\s*[-=:]\s*(\d{1,9})\s*[\]})]`)
 	rePartMaybe = regexp.MustCompile(`(?i)\b(?:part|teil)[ -]?(\d{1,2})\b`)
 )
 
@@ -102,6 +107,15 @@ func cutJunk(s string) string {
 // ParseName liest Titel, Jahr, Staffel und Folge aus einem Datei- oder Ordnernamen.
 func ParseName(name string) Parsed {
 	var p Parsed
+	// IDs vor dem Normalisieren suchen, damit Klammern und Punkte noch stimmen.
+	if m := reIMDB.FindStringSubmatchIndex(name); m != nil {
+		p.IMDBID = strings.ToLower(name[m[2]:m[3]])
+		name = name[:m[0]] + " " + name[m[1]:]
+	}
+	if m := reTMDBID.FindStringSubmatchIndex(name); m != nil {
+		p.TMDBID, _ = strconv.Atoi(name[m[2]:m[3]])
+		name = name[:m[0]] + " " + name[m[1]:]
+	}
 	s := normalize(name)
 	if m := reResolution.FindStringSubmatch(s); m != nil {
 		p.Resolution = strings.ToLower(m[1])
@@ -207,13 +221,13 @@ func ParsePath(path string) Parsed {
 				p.Year = d.Year
 			}
 		}
-		return p
+		return withIDs(p, p, d)
 	}
 	if dirSeason > 0 {
 		// Datei im Staffelordner ohne SxxExx: nur die Folgennummer im Namen?
 		if m := reEpOnly.FindStringSubmatch(normalize(base)); m != nil {
 			ep, _ := strconv.Atoi(m[1])
-			return Parsed{Title: d.Title, Year: d.Year, Series: true, Season: dirSeason, Episode: ep, Resolution: p.Resolution}
+			return withIDs(Parsed{Title: d.Title, Year: d.Year, Series: true, Season: dirSeason, Episode: ep, Resolution: p.Resolution}, p, d)
 		}
 	}
 	if p.Title == "" || (p.Year == 0 && d.Year != 0 && !d.Series) {
@@ -221,7 +235,17 @@ func ParsePath(path string) Parsed {
 		if res == "" {
 			res = d.Resolution
 		}
-		p = Parsed{Title: d.Title, Year: d.Year, Resolution: res, Part: p.Part}
+		p = withIDs(Parsed{Title: d.Title, Year: d.Year, Resolution: res, Part: p.Part}, p, d)
 	}
-	return p
+	return withIDs(p, p, d)
+}
+
+// withIDs übernimmt IMDb- und TMDB-ID aus dem Dateinamen, sonst aus dem
+// Ordner (bei Serien der Serienordner, dann steht die ID für die ganze Serie).
+func withIDs(out, file, dir Parsed) Parsed {
+	out.IMDBID, out.TMDBID = file.IMDBID, file.TMDBID
+	if out.IMDBID == "" && out.TMDBID == 0 {
+		out.IMDBID, out.TMDBID = dir.IMDBID, dir.TMDBID
+	}
+	return out
 }

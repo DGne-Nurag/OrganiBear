@@ -38,6 +38,10 @@ func TestParsePath(t *testing.T) {
 		{"[SubsPlease] One Piece - 1071 (1080p) [ABCD1234].mkv", Parsed{Title: "One Piece", Series: true, Episode: 1071, Absolute: 1071, Resolution: "1080p"}},
 		{"Naruto Folge 12.mkv", Parsed{Title: "Naruto", Series: true, Episode: 12, Absolute: 12}},
 		{"Dark/Staffel 2/E05.mkv", Parsed{Title: "Dark", Series: true, Season: 2, Episode: 5}},
+		{"Matrix (1999) {imdb-tt0133093}.mkv", Parsed{Title: "Matrix", Year: 1999, IMDBID: "tt0133093"}},
+		{"The.Matrix.1999.tt0133093.1080p.mkv", Parsed{Title: "The Matrix", Year: 1999, Resolution: "1080p", IMDBID: "tt0133093"}},
+		{"Matrix (1999) [tmdbid=603]/matrix.mkv", Parsed{Title: "Matrix", Year: 1999, TMDBID: 603}},
+		{"Breaking Bad [imdbid-tt0903747]/Season 1/S01E03.mkv", Parsed{Title: "Breaking Bad", Series: true, Season: 1, Episode: 3, IMDBID: "tt0903747"}},
 		{"Terminator - 2029.mkv", Parsed{Title: "Terminator", Year: 2029}},
 		{"Film.2010.720p.x264-E4.mkv", Parsed{Title: "Film", Year: 2010, Resolution: "720p"}},
 	}

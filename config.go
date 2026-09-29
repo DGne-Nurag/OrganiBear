@@ -46,6 +46,14 @@ type Config struct {
 	IgnorePatterns []string   `json:"ignore_patterns"`
 	Extras         Extras     `json:"extras"`
 	Subtitles      Subtitles  `json:"subtitles"`
+	TheTVDB        TheTVDB    `json:"thetvdb"`
+}
+
+// TheTVDB ist die zweite Quelle für Serien, wenn TMDB nichts findet. Den
+// Projekt-Key bringt das Programm mit.
+type TheTVDB struct {
+	Enabled bool   `json:"enabled"`
+	Order   string `json:"order,omitempty"` // "default" (wie ausgestrahlt) oder "dvd"
 }
 
 // Subtitles legt fest, ob und in welchen Sprachen fehlende Untertitel von
@@ -164,6 +172,11 @@ func (c *Config) Validate() error {
 	c.Subtitles.User = strings.TrimSpace(c.Subtitles.User)
 	if c.Subtitles.Enabled && len(langs) == 0 {
 		return errors.New("Untertitel: bitte mindestens eine Sprache angeben")
+	}
+	switch c.TheTVDB.Order {
+	case "", "default", "dvd":
+	default:
+		return errors.New("TheTVDB: unbekannte Folgenreihenfolge")
 	}
 	return nil
 }

@@ -43,7 +43,7 @@ function makeFixtures() {
 
 async function startServer() {
   const bin = join(tmp, process.platform === "win32" ? "ob.exe" : "ob");
-  execFileSync("go", ["build", "-ldflags", "-X main.openSubtitlesKey=e2e-dummy", "-o", bin, "."], { cwd: repo, stdio: "inherit" });
+  execFileSync("go", ["build", "-ldflags", "-X main.openSubtitlesKey=e2e-dummy -X main.tvdbKey=e2e-dummy", "-o", bin, "."], { cwd: repo, stdio: "inherit" });
   const proc = spawn(bin, ["-config", join(tmp, "cfg.json"), "-no-browser", "-addr", "127.0.0.1:0"]);
   const url = await new Promise((resolve, reject) => {
     let out = "";
@@ -113,6 +113,7 @@ async function run() {
       await page.click('nav button[data-tab="settings"]');
       await page.waitForTimeout(300);
       await axe(page, "Einstellungen");
+      (await page.locator("#tvdb-card").isVisible()) ? ok("TheTVDB-Einstellungen sichtbar") : fail("TheTVDB-Einstellungen fehlen");
 
       await page.click('nav button[data-tab="sort"]');
       await page.click('[data-pick="src"]');
@@ -149,6 +150,11 @@ async function run() {
           info: { title: "One Piece", year: 1999, series: true, episode: 1071, absolute: 1071, tmdb_id: 37854 }, candidates: [], matched: true,
           action: "move", companions: [], rel_target: "Serien/One Piece (1999)/Staffel/One Piece - SE1071.mkv", status: "unmatched",
           message: "Folge 1071 ist fortlaufend gezählt. Bitte unter „Anpassen“ Staffel und Folge wählen." },
+        { id: 4, source: "/x/d.mkv", target: "/y/d.mkv", rel_source: "Hoshi no Kuma - 13.mkv", parsed: { title: "Hoshi no Kuma", series: true },
+          info: { title: "Der Sternenbär", year: 2019, series: true, season: 2, episode: 1, episode_title: "Winterschlaf", tvdb_id: 424242, source: "tvdb" },
+          candidates: [{ id: 424242, source: "tvdb", title: "Der Sternenbär", year: 2019 }], matched: true, action: "move", companions: [],
+          rel_target: "Serien/Der Sternenbär (2019)/Staffel 02/Der Sternenbär - S02E01 - Winterschlaf.mkv", status: "ready",
+          message: "Folge 13 ist fortlaufend gezählt, laut TheTVDB ist das Staffel 2, Folge 1. Bitte kurz prüfen." },
       ] } }));
       await page.route("**/api/tv/37854/seasons", r => r.fulfill({ json: [{ number: 0, name: "Specials", episodes: 40 }, { number: 21, name: "Wano Kuni", episodes: 197 }] }));
       await page.route("**/api/tv/37854/season/21", r => r.fulfill({ json: [{ number: 179, name: "Ruffy gegen Kaido" }] }));
@@ -156,6 +162,8 @@ async function run() {
       await page.waitForSelector(".item");
       await page.click(".item .tog");
       await axe(page, "Treffer und Suche");
+      (await page.locator('.item[data-id="4"] a.tag[href^="https://thetvdb.com/"]').count()) === 1
+        ? ok("TheTVDB-Treffer mit Link auf TheTVDB.com") : fail("Link auf TheTVDB.com fehlt beim Treffer");
       await page.click('.item[data-id="3"] .tog');
       await page.selectOption('.item[data-id="3"] .ps', "21");
       await page.waitForSelector('.item[data-id="3"] .pe:not([disabled])');

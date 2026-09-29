@@ -23,6 +23,7 @@ type Candidate struct {
 	Year          int    `json:"year,omitempty"`
 	Overview      string `json:"overview,omitempty"`
 	Poster        string `json:"poster,omitempty"`
+	Source        string `json:"source,omitempty"` // leer: TMDB, "tvdb": TheTVDB
 }
 
 // TMDB ist ein kleiner Client für themoviedb.org (API v3).
@@ -32,6 +33,9 @@ type TMDB struct {
 	BaseURL  string
 	ImageURL string // Basisadresse für Bilder in Originalgröße
 	HTTP     *http.Client
+
+	// TVDB ist die optionale zweite Quelle für Serien (nil, wenn aus).
+	TVDB *TVDB
 
 	mu    sync.Mutex
 	cache map[string][]byte
@@ -168,6 +172,41 @@ func (t *TMDB) Search(ctx context.Context, series bool, query string, year int) 
 		}
 	}
 	return nil, nil
+}
+
+// Found ist ein Treffer über eine fremde ID (IMDb oder TheTVDB).
+type Found struct {
+	Candidate
+	Series          bool
+	Season, Episode int // gesetzt, wenn die ID zu einer einzelnen Folge gehört
+}
+
+// Find löst eine IMDb-ID ("tt0133093") oder TheTVDB-ID über TMDB auf.
+// source ist "imdb_id" oder "tvdb_id".
+func (t *TMDB) Find(ctx context.Context, source, id string) (Found, error) {
+	var r struct {
+		Movies   []tmdbResult `json:"movie_results"`
+		TV       []tmdbResult `json:"tv_results"`
+		Episodes []struct {
+			ShowID  int `json:"show_id"`
+			Season  int `json:"season_number"`
+			Episode int `json:"episode_number"`
+		} `json:"tv_episode_results"`
+	}
+	if err := t.get(ctx, "/find/"+url.PathEscape(id), url.Values{"external_source": {source}}, &r); err != nil {
+		return Found{}, err
+	}
+	switch {
+	case len(r.Movies) > 0:
+		return Found{Candidate: r.Movies[0].candidate()}, nil
+	case len(r.TV) > 0:
+		return Found{Candidate: r.TV[0].candidate(), Series: true}, nil
+	case len(r.Episodes) > 0 && r.Episodes[0].ShowID > 0:
+		e := r.Episodes[0]
+		c, err := t.Details(ctx, true, e.ShowID)
+		return Found{Candidate: c, Series: true, Season: e.Season, Episode: e.Episode}, err
+	}
+	return Found{}, errNotFound
 }
 
 // Details lädt einen Film oder eine Serie direkt per ID.

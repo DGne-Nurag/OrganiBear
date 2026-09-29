@@ -42,12 +42,14 @@ jobs:
           go-version: stable
           check-latest: true
           cache: false
-      # Der OpenSubtitles-Key der App kommt aus einem Secret und steht nie im Repo.
+      # Die App-Keys (OpenSubtitles, TheTVDB) kommen aus Secrets und stehen nie im Repo.
       - run: |
           if [ -z "$OS_KEY" ]; then echo "::warning::Secret OPENSUBTITLES_API_KEY fehlt, das Release kann keine Untertitel laden"; fi
-          go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME} -X main.openSubtitlesKey=${OS_KEY}" -o "dist/organibear-${GITHUB_REF_NAME}-${GOOS}-${GOARCH}${EXT}" .
+          if [ -z "$TVDB_KEY" ]; then echo "::warning::Secret THETVDB_API_KEY fehlt, das Release kann TheTVDB nicht nutzen"; fi
+          go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME} -X main.openSubtitlesKey=${OS_KEY} -X main.tvdbKey=${TVDB_KEY}" -o "dist/organibear-${GITHUB_REF_NAME}-${GOOS}-${GOARCH}${EXT}" .
         env:
           OS_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
+          TVDB_KEY: ${{ secrets.THETVDB_API_KEY }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           EXT: ${{ matrix.ext }}
