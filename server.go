@@ -308,8 +308,19 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
+	// Erledigtes verschwindet aus der Liste, der Rest wird neu geprüft.
+	rest := s.items[:0]
+	done := 0
+	for _, it := range s.items {
+		if it.Status == StatusDone {
+			done++
+			continue
+		}
+		rest = append(rest, it)
+	}
+	s.items = rest
 	PlanTargets(s.cfg, s.items)
-	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled(), "ops": len(j.Ops), "journal": filepath.Base(path)})
+	writeJSON(w, map[string]any{"items": s.items, "online": s.db.Enabled(), "ops": len(j.Ops), "done": done, "journal": filepath.Base(path)})
 }
 
 type historyEntry struct {
