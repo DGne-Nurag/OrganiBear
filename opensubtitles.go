@@ -407,7 +407,7 @@ func FetchSubtitles(ctx context.Context, cfg Config, subs *OpenSubs, it *Item) (
 	if err != nil {
 		return nil, []string{"Untertitel " + name + ": " + err.Error()}
 	}
-	dst, _ := filepath.Abs(cfg.TargetDir)
+	dst, _ := filepath.Abs(cfg.Target())
 	w := &extraWriter{ctx: ctx, dst: dst}
 	base := strings.TrimSuffix(it.Target, filepath.Ext(it.Target))
 	for _, l := range missing {

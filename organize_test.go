@@ -354,3 +354,70 @@ func TestAbsoluteEpisodeMath(t *testing.T) {
 		}
 	}
 }
+
+func TestInPlace(t *testing.T) {
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "filme")
+	touch(t, src,
+		"The.Matrix.1999.1080p.BluRay.x264-GRP/The.Matrix.1999.1080p.BluRay.x264-GRP.mkv",
+		"The.Matrix.1999.1080p.BluRay.x264-GRP/The.Matrix.1999.1080p.BluRay.x264-GRP.nfo",
+		"The.Matrix.1999.1080p.BluRay.x264-GRP/Subs/English.srt",
+		"Breaking.Bad.S01E03.720p-GRP/Breaking.Bad.S01E03.720p.mkv",
+		"Breaking.Bad.S01E03.720p-GRP/Breaking.Bad.S01E03.720p.de.srt",
+	)
+	cfg := DefaultConfig()
+	// Das gemerkte Ziel wird bei „Nur umbenennen“ nicht benutzt.
+	cfg.SourceDir, cfg.TargetDir, cfg.TMDBKey, cfg.InPlace = src, filepath.Join(tmp, "anderswo"), "testkey", true
+	for i := range cfg.FileRules {
+		if cfg.FileRules[i].Name == "Untertitel" {
+			cfg.FileRules[i].Action = ActionCopy
+		}
+	}
+	db := fakeTMDB(t)
+	items, err := Scan(context.Background(), cfg, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := map[int]bool{}
+	for _, it := range items {
+		if it.Status != StatusReady {
+			t.Fatalf("%s: %s %s", it.RelSource, it.Status, it.Message)
+		}
+		if it.Action != ActionMove || it.Companions[0].Action != ActionMove {
+			t.Errorf("%s: beim Umbenennen wird nichts kopiert: %s / %s", it.RelSource, it.Action, it.Companions[0].Action)
+		}
+		ids[it.ID] = true
+	}
+	_, jpath, err := Apply(cfg, items, ids, filepath.Join(tmp, "verlauf"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustExist(t, filepath.Join(src, "Filme/Matrix (1999)/Matrix (1999).mkv"), true)
+	mustExist(t, filepath.Join(src, "Filme/Matrix (1999)/Matrix (1999).English.srt"), true)
+	mustExist(t, filepath.Join(src, "Serien/Breaking Bad (2008)/Staffel 01/Breaking Bad - S01E03 - ...und der Leichensack.de.srt"), true)
+	mustExist(t, filepath.Join(tmp, "anderswo"), false)
+	// Leere Release-Ordner verschwinden, Ordner mit Übrigem (NFO) bleiben.
+	mustExist(t, filepath.Join(src, "Breaking.Bad.S01E03.720p-GRP"), false)
+	mustExist(t, filepath.Join(src, "The.Matrix.1999.1080p.BluRay.x264-GRP/Subs"), false)
+	mustExist(t, filepath.Join(src, "The.Matrix.1999.1080p.BluRay.x264-GRP/The.Matrix.1999.1080p.BluRay.x264-GRP.nfo"), true)
+
+	// Nochmal schnüffeln: alles liegt schon richtig.
+	again, err := Scan(context.Background(), cfg, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range again {
+		if it.Status != StatusSame {
+			t.Errorf("zweiter Lauf %s: %s %s", it.RelSource, it.Status, it.Message)
+		}
+	}
+
+	problems, err := Undo(jpath)
+	if err != nil || len(problems) > 0 {
+		t.Fatalf("Undo: %v %v", err, problems)
+	}
+	mustExist(t, filepath.Join(src, "Breaking.Bad.S01E03.720p-GRP/Breaking.Bad.S01E03.720p.de.srt"), true)
+	mustExist(t, filepath.Join(src, "The.Matrix.1999.1080p.BluRay.x264-GRP/Subs/English.srt"), true)
+	mustExist(t, filepath.Join(src, "Filme"), false)
+	mustExist(t, filepath.Join(src, "Serien"), false)
+}
