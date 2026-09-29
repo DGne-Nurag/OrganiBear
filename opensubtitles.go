@@ -402,7 +402,11 @@ func FetchSubtitles(ctx context.Context, cfg Config, subs *OpenSubs, it *Item) (
 	if err := subs.Login(ctx); err != nil {
 		return nil, []string{"Untertitel " + name + ": " + err.Error()}
 	}
-	hash, _ := movieHash(it.Target)
+	hashed := it.Target
+	if it.Remux && it.original != "" {
+		hashed = it.original // der Fingerabdruck bei OpenSubtitles gehört zur Originaldatei
+	}
+	hash, _ := movieHash(hashed)
 	results, err := subs.Search(ctx, it, hash, missing)
 	if err != nil {
 		return nil, []string{"Untertitel " + name + ": " + err.Error()}

@@ -25,6 +25,7 @@ in eine ordentliche Bibliothek.
   nicht nur aus dem Namen. Liegen zwei Versionen desselben Films vor, schlägt er die bessere vor
   („2160p HEVC statt 1080p H.264“) und wählt sie gleich aus.
 - **Rückgängig:** Jeder Lauf landet im Verlauf und lässt sich mit einem Klick zurückdrehen.
+- **MP4 in MKV umpacken:** auf Wunsch, ohne Qualitätsverlust und ohne Zusatzprogramm.
 - **Fehlende Untertitel** in deinen Sprachen lädt er auf Wunsch von OpenSubtitles.com nach.
 - **Für Plex, Jellyfin und Kodi:** auf Wunsch NFO-Dateien, Poster und Hintergrundbilder dazu, danach liest der Mediaserver seine Bibliothek neu ein.
 
@@ -113,6 +114,22 @@ menschliche Übersetzungen gehen vor.
 - Übertragen werden Fingerabdruck, Dateigröße, Sprachen und TMDB-ID, aber keine Dateinamen oder Pfade.
 - Vorhandene Untertitel werden nie überschrieben, „Rückgängig“ entfernt die geladenen wieder.
 - Laut den Nutzungsbedingungen von OpenSubtitles ist eine **kommerzielle Nutzung nicht erlaubt**.
+
+## MP4 in MKV umpacken
+
+Unter **Einstellungen › MP4 in MKV umpacken** packt der Bär MP4-Videos beim Einsortieren in MKV um. Bild, Ton und
+Untertitel bleiben Bit für Bit gleich, nur die „Kiste“ drumherum wechselt. Das braucht kein ffmpeg und geht so schnell,
+wie die Platte lesen und schreiben kann, kurzzeitig aber so viel freien Platz, wie das Video groß ist.
+
+- Die Vorschau zeigt „wird zu MKV umgepackt“. Kann eine MP4 nicht umgepackt werden (seltenes Format, kopiergeschützt,
+  kaputt), bleibt sie MP4, und die Vorschau sagt warum.
+- Umgepackt werden H.264, HEVC und AV1, dazu AAC, MP3, AC3 und E-AC3 sowie MP4-Untertitel (als SRT-Text).
+  Kapitelspuren fallen weg.
+- Beim Verschieben legt der Bär das Original in den Ordner `OrganiBear-Papierkorb` im Zielordner. Läuft die MKV,
+  darfst du ihn löschen. „Rückgängig“ löscht die MKV und holt die MP4 zurück. Beim Kopieren bleibt das Original ohnehin,
+  wo es war.
+- Geschrieben wird nach den offenen Standards [RFC 8794 (EBML)](https://www.rfc-editor.org/rfc/rfc8794) und
+  [RFC 9559 (Matroska)](https://www.rfc-editor.org/rfc/rfc9559).
 
 ## IMDb-IDs und TheTVDB
 

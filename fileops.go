@@ -176,6 +176,12 @@ func runOp(op FileOp) error {
 		return moveFile(op.Source, op.Target)
 	case ActionCopy:
 		return copyFile(op.Source, op.Target)
+	case ActionRemux:
+		// #nosec G301 -- Bibliotheksordner müssen für Mediaserver lesbar sein
+		if err := os.MkdirAll(filepath.Dir(op.Target), 0o755); err != nil {
+			return err
+		}
+		return remuxFile(op.Source, op.Target)
 	}
 	return fmt.Errorf("unbekannte Aktion %q", op.Action)
 }
