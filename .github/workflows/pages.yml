@@ -1,0 +1,45 @@
+name: Webseite
+
+# Baut die Webseite aus site/ und veröffentlicht sie auf GitHub Pages.
+# Bilder kommen aus dem Programm selbst (Symbol, Screenshot, Tour), damit sie
+# nie auseinanderlaufen. Einmalig nötig: Settings › Pages › Source „GitHub Actions“.
+
+on:
+  push:
+    branches: [main]
+    paths: [site/**, docs/screenshot.png, web/icon.png, web/tour/**, .github/workflows/pages.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          mkdir -p _site/tour
+          cp site/* _site/
+          cp docs/screenshot.png web/icon.png _site/
+          cp web/tour/*.jpg _site/tour/
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
