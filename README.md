@@ -30,15 +30,22 @@ in eine ordentliche Bibliothek.
 
 ## Loslegen
 
-1. Programm für dein System unter [Releases](https://github.com/DGne-Nurag/OrganiBear/releases) laden
-   (oder selbst bauen, siehe unten). Unter macOS und Linux vorher `chmod +x` ausführen; macOS
-   fragt beim ersten Start nach, weil das Programm nicht signiert ist (Rechtsklick › Öffnen).
-   - Windows: `organibear-…-windows-amd64.exe`. Das Fenster nutzt die in Windows 10 und 11 eingebaute
-     WebView2 (Microsoft Edge), die dort normalerweise schon installiert ist.
-   - macOS: `organibear-…-macos-arm64` (Apple Silicon) oder `-macos-amd64` (Intel), ab macOS 11.
-   - Linux mit Desktop: `organibear-…-linux-amd64-desktop` bzw. `-arm64-desktop`. Braucht GTK 3 und
-     WebKitGTK 4.1 (Debian/Ubuntu: `sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0`, meist schon da).
-   - Linux ohne Desktop (Server, NAS, Raspberry Pi): `organibear-…-linux-amd64` bzw. `-arm64`, nur mit Browser.
+1. Die richtige Datei für deinen Computer laden (immer die neueste Version):
+
+   | Dein Computer | Download |
+   |---|---|
+   | Windows 10 oder 11 | [OrganiBear-Windows.exe](https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Windows.exe) |
+   | Mac mit Apple-Chip (M1, M2, M3 …) | [OrganiBear-Mac-AppleSilicon](https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Mac-AppleSilicon) |
+   | Mac mit Intel-Chip | [OrganiBear-Mac-Intel](https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Mac-Intel) |
+   | Linux mit Bildschirm | [OrganiBear-Linux](https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Linux) (ARM: [OrganiBear-Linux-ARM](https://github.com/DGne-Nurag/OrganiBear/releases/latest/download/OrganiBear-Linux-ARM)) |
+
+   Alle Versionen stehen unter [Releases](https://github.com/DGne-Nurag/OrganiBear/releases).
+   Unter Mac und Linux vorher `chmod +x` ausführen; der Mac fragt beim ersten Start nach, weil das Programm
+   nicht signiert ist (Rechtsklick › Öffnen).
+   - Windows: Das Fenster nutzt die in Windows 10 und 11 eingebaute WebView2 (Microsoft Edge).
+   - Mac: ab macOS 11.
+   - Linux mit Bildschirm: braucht GTK 3 und WebKitGTK 4.1 (Debian/Ubuntu: `sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0`, meist schon da).
+   - NAS oder Server ohne Bildschirm: selbst bauen mit `go build -o organibear .` (siehe unten), bedient wird dann im Browser.
 2. Starten. OrganiBear öffnet sein eigenes Fenster. Klappt das nicht (oder bei den Linux-Versionen ohne
    Desktop), öffnet sich die Oberfläche stattdessen im Browser; der Link steht dann auch im Terminal.
 3. Beim ersten Start führt der Bär Schritt für Schritt zum kostenlosen TMDB-Key: Konto anlegen, Key beantragen
@@ -164,7 +171,7 @@ Serien/{title} ({year})/Staffel {season:02}/{title} - S{season:02}E{episode:02} 
 Benötigt [Go](https://go.dev) 1.26 oder neuer.
 
 ```sh
-go build -o organibear .              # nur Browser, läuft überall
+go build -o organibear .              # nur Browser, läuft überall (auch NAS/Server)
 scripts/build.sh organibear           # dasselbe über das Build-Skript
 GOOS=windows GOARCH=amd64 KIND=desktop scripts/build.sh organibear.exe   # mit Fenster
 ```
@@ -204,8 +211,10 @@ Die kostenlose TMDB-API ist nur für nicht-kommerzielle Nutzung gedacht; jeder N
 ## Release veröffentlichen
 
 Ein Tag startet den Release-Workflow. Er testet, baut Windows, macOS (Intel und Apple Silicon)
-und Linux (amd64 und arm64, jeweils mit Fenster und ohne) und legt ein GitHub-Release mit den Programmen,
-`THIRD_PARTY_NOTICES.txt` (Lizenzen der eingebauten Bibliotheken) und `SHA256SUMS` an.
+und Linux (amd64 und arm64) und legt ein GitHub-Release mit den Programmen,
+`THIRD_PARTY_NOTICES.txt` (Lizenzen der eingebauten Bibliotheken) und `SHA256SUMS` an. Oben im Release steht
+die Tabelle „Welche Datei brauche ich?“ aus `.github/release-download.md`. Die Dateinamen enthalten keine
+Version, damit die Download-Links oben immer auf die neueste Version zeigen.
 Die Version steht danach im Startbanner. Tags mit Bindestrich (`v0.2.0-rc1`) werden als Vorabversion markiert.
 
 ```sh
