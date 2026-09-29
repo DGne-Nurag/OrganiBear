@@ -214,6 +214,12 @@ func WriteExtras(ctx context.Context, cfg Config, db *TMDB, it *Item) (created, 
 	base := strings.TrimSuffix(it.Target, filepath.Ext(it.Target))
 
 	if !it.Info.Series {
+		// Mehrteilige Filme teilen sich NFO und Bilder: Name ohne Teilangabe.
+		if it.Info.Part > 0 {
+			whole := it.Info
+			whole.Part = 0
+			base = filepath.Join(dst, RenderTemplate(cfg.MovieTemplate, whole))
+		}
 		if x.NFO {
 			w.nfo(base+".nfo", movieNFO(it.Info, meta))
 		}

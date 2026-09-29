@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -283,5 +284,27 @@ func TestBetterReason(t *testing.T) {
 	b.Size = a.Size - 1
 	if best, _ := suggestBest([]*Item{b, a}); best != nil {
 		t.Error("fast gleich große Dateien sollten keinen Vorschlag bekommen")
+	}
+}
+
+func TestMultiPartMovie(t *testing.T) {
+	tmp := t.TempDir()
+	src, dst := filepath.Join(tmp, "in"), filepath.Join(tmp, "out")
+	touch(t, src, "Titanic.1997.CD1.avi", "Titanic.1997.CD2.avi", "Titanic.1997.CD1.srt", "Titanic.1997.CD2.srt")
+	cfg := DefaultConfig()
+	cfg.SourceDir, cfg.TargetDir = src, dst
+	items, err := Scan(context.Background(), cfg, NewTMDB("", "de-DE"))
+	if err != nil || len(items) != 2 {
+		t.Fatalf("%v %d", err, len(items))
+	}
+	for i, it := range items {
+		n := fmt.Sprint(i + 1)
+		want := filepath.FromSlash("Filme/Titanic (1997)/Titanic (1997) - part" + n + ".avi")
+		if it.Status != StatusOffline || it.RelTarget != want {
+			t.Errorf("Teil %s: %q %q (%s)", n, it.Status, it.RelTarget, it.Message)
+		}
+		if len(it.Companions) != 1 || !strings.HasSuffix(it.Companions[0].Target, "Titanic (1997) - part"+n+".srt") {
+			t.Errorf("Untertitel zu Teil %s: %+v", n, it.Companions)
+		}
 	}
 }

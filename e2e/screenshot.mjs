@@ -39,6 +39,8 @@ const files = [
   "Stranger Things/Staffel 2/05 - Dig Dug.mkv",
   "Inception (2010) [720p].mp4",
   "Amelie.German.720p.WEB-DL.mkv",
+  "Titanic.1997.CD1.avi",
+  "Titanic.1997.CD2.avi",
 ];
 for (const f of files) {
   mkdirSync(dirname(join(src, f)), { recursive: true });

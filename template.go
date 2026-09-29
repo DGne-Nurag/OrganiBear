@@ -24,11 +24,12 @@ type MediaInfo struct {
 	HDR           string `json:"hdr,omitempty"`       // DV, HDR10, HLG
 	Audio         string `json:"audio,omitempty"`     // Haupttonspur, z. B. "TrueHD 7.1"
 	Languages     string `json:"languages,omitempty"` // Tonspur-Sprachen, z. B. "DE-EN"
+	Part          int    `json:"part,omitempty"`      // Teil eines mehrteiligen Films
 	TMDBID        int    `json:"tmdb_id,omitempty"`
 }
 
 // Placeholders listet alle Platzhalter für die Hilfe im Webinterface.
-var Placeholders = []string{"title", "original_title", "year", "season", "episode", "episode_title", "resolution", "vcodec", "hdr", "audio", "languages", "tmdb_id", "first_letter"}
+var Placeholders = []string{"title", "original_title", "year", "season", "episode", "episode_title", "resolution", "vcodec", "hdr", "audio", "languages", "part", "tmdb_id", "first_letter"}
 
 var rePlaceholder = regexp.MustCompile(`\{([a-z_]+)(?::(\d+))?\}`)
 
@@ -46,6 +47,14 @@ func CheckTemplate(tmpl string) error {
 		}
 	}
 	return nil
+}
+
+// partName ist die Teilbezeichnung, die alle Mediaserver verstehen.
+func partName(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("part%d", n)
 }
 
 func pad(n, width int) string {
@@ -93,6 +102,8 @@ func RenderTemplate(tmpl string, info MediaInfo) string {
 			return sanitize(info.Audio)
 		case "languages":
 			return sanitize(info.Languages)
+		case "part":
+			return partName(info.Part)
 		case "tmdb_id":
 			return pad(info.TMDBID, width)
 		case "first_letter":
@@ -114,6 +125,11 @@ func RenderTemplate(tmpl string, info MediaInfo) string {
 		if seg = cleanSegment(seg); seg != "" {
 			parts = append(parts, seg)
 		}
+	}
+	// Mehrteilige Filme: Steht {part} nicht in der Vorlage, kommt " - part1"
+	// an den Dateinamen. So erkennen Plex, Jellyfin und Kodi die Teile.
+	if info.Part > 0 && len(parts) > 0 && !strings.Contains(tmpl, "{part") {
+		parts[len(parts)-1] += " - " + partName(info.Part)
 	}
 	return filepath.Join(parts...)
 }

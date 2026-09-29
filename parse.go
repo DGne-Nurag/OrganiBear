@@ -17,6 +17,7 @@ type Parsed struct {
 	EpisodeEnd   int    `json:"episode_end,omitempty"`
 	EpisodeTitle string `json:"episode_title,omitempty"`
 	Resolution   string `json:"resolution,omitempty"`
+	Part         int    `json:"part,omitempty"` // Teil eines mehrteiligen Films (CD1, part2 …)
 }
 
 var (
@@ -31,7 +32,30 @@ var (
 	reSpaces     = regexp.MustCompile(`\s+`)
 	reSeasonDir  = regexp.MustCompile(`(?i)^(?:season|staffel|s)[ ._-]*(\d{1,2})$`)
 	reEpOnly     = regexp.MustCompile(`(?i)(?:^|\b(?:e|ep|episode|folge) ?)(\d{1,3})\b`)
+	// Teile eines Films. "cd", "disc" und "pt" sind eindeutig, "part"
+	// und "teil" nur hinter der Jahreszahl ("Harry Potter … Part 1 (2010)" ist ein Titel).
+	rePartSure  = regexp.MustCompile(`(?i)\b(?:cd|dis[ck]|pt)[ -]?(\d{1,2})\b`)
+	rePartMaybe = regexp.MustCompile(`(?i)\b(?:part|teil)[ -]?(\d{1,2})\b`)
 )
+
+// cutPart sucht eine Teilangabe, entfernt sie aus s und liefert die Nummer.
+// after ist die Position, ab der auch "part"/"teil" zählen (-1: nie).
+func cutPart(s string, after int) (string, int) {
+	m := rePartSure.FindStringSubmatchIndex(s)
+	if m == nil && after >= 0 {
+		if mm := rePartMaybe.FindStringSubmatchIndex(s); mm != nil && mm[0] >= after {
+			m = mm
+		}
+	}
+	if m == nil {
+		return s, 0
+	}
+	n, _ := strconv.Atoi(s[m[2]:m[3]])
+	if n == 0 {
+		return s, 0
+	}
+	return strings.TrimSpace(reSpaces.ReplaceAllString(s[:m[0]]+" "+s[m[1]:], " ")), n
+}
 
 // normalize ersetzt Punkte und Unterstriche durch Leerzeichen und entfernt
 // führende Release-Gruppen wie "[Gruppe]".
@@ -108,7 +132,13 @@ func ParseName(name string) Parsed {
 		return p
 	}
 
-	// Film: Titel steht vor dem (letzten) Jahr
+	// Film: Teilangabe (CD1, part2 …) heraustrennen, dann steht der Titel vor
+	// dem (letzten) Jahr.
+	after := -1
+	if y := lastYear(s); y != nil {
+		after = y[1]
+	}
+	s, p.Part = cutPart(s, after)
 	if y := lastYear(s); y != nil {
 		p.Year, _ = strconv.Atoi(s[y[2]:y[3]])
 		p.Title = cleanTitle(s[:y[0]])
@@ -170,7 +200,7 @@ func ParsePath(path string) Parsed {
 		if res == "" {
 			res = d.Resolution
 		}
-		p = Parsed{Title: d.Title, Year: d.Year, Resolution: res}
+		p = Parsed{Title: d.Title, Year: d.Year, Resolution: res, Part: p.Part}
 	}
 	return p
 }

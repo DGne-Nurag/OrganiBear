@@ -181,3 +181,33 @@ func TestRefreshServers(t *testing.T) {
 		t.Errorf("ohne Server: %v", msgs)
 	}
 }
+
+func TestExtrasMultiPart(t *testing.T) {
+	tmp := t.TempDir()
+	src, dst := filepath.Join(tmp, "in"), filepath.Join(tmp, "out")
+	touch(t, src, "The.Matrix.1999.CD1.mkv", "The.Matrix.1999.CD2.mkv")
+	cfg := DefaultConfig()
+	cfg.SourceDir, cfg.TargetDir, cfg.TMDBKey = src, dst, "testkey"
+	cfg.Extras.NFO = true
+	db := fakeTMDB(t)
+	ctx := context.Background()
+	items, err := Scan(ctx, cfg, db)
+	if err != nil || len(items) != 2 {
+		t.Fatalf("%v %d", err, len(items))
+	}
+	extras := func(it *Item) ([]string, []string) { return WriteExtras(ctx, cfg, db, it) }
+	j, _, err := Apply(cfg, items, map[int]bool{items[0].ID: true, items[1].ID: true}, filepath.Join(tmp, "verlauf"), extras)
+	if err != nil || len(j.Warnings) > 0 {
+		t.Fatalf("%v %v", err, j.Warnings)
+	}
+	dir := filepath.Join(dst, "Filme", "Matrix (1999)")
+	entries, _ := os.ReadDir(dir)
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	// Eine gemeinsame NFO ohne Teilangabe, dazu beide Teile.
+	if strings.Join(names, "|") != "Matrix (1999) - part1.mkv|Matrix (1999) - part2.mkv|Matrix (1999).nfo" {
+		t.Errorf("Inhalt: %v", names)
+	}
+}

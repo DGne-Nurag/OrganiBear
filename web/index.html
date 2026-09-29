@@ -801,7 +801,7 @@ function itemHTML(it) {
       <div class="new" id="new-${it.id}"><span class="arrow" aria-hidden="true">→ </span><span class="sr-only">Neu: </span>${esc(it.rel_target || "?")}</div>
       <div class="meta" id="st-${it.id}">
         <span class="tag s-${it.status}">${STATUS[it.status]}</span>
-        <span class="tag s-neutral">${info.series ? "Serie" : "Film"}</span>
+        <span class="tag s-neutral">${info.series ? "Serie" : "Film"}</span>${info.part && !info.series ? `<span class="tag s-neutral">Teil ${info.part}</span>` : ""}
         ${better}${media}${comps}${extras}${subs}${action}
         ${it.message ? `<span class="msg">${esc(it.message)}</span>` : ""}
       </div>
