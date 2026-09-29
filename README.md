@@ -33,8 +33,13 @@ in eine ordentliche Bibliothek.
 ### Optionen
 
 ```
-organibear [-addr 127.0.0.1:8765] [-config pfad/organibear.json] [-no-browser]
+organibear [-addr 127.0.0.1:8765] [-config pfad/organibear.json] [-no-browser] [-idle 5m]
 ```
+
+**Beenden:** über den Knopf „Beenden“ oben rechts im Webinterface, mit Strg+C im Programmfenster
+oder einfach Tab schließen: Ist 5 Minuten lang kein Tab mehr offen, legt sich der Bär von selbst schlafen
+(`-idle 0` schaltet das ab). In allen drei Fällen wird ein laufendes Einsortieren vorher noch fertig;
+ein zweites Strg+C bricht sofort ab.
 
 Die Konfiguration liegt standardmäßig als `organibear.json` neben dem Programm,
 der Verlauf im Ordner `organibear-verlauf` daneben.

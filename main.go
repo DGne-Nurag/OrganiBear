@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"flag"
@@ -13,9 +14,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -37,6 +40,7 @@ func main() {
 	addr := flag.String("addr", "127.0.0.1:8765", "Adresse für das Webinterface")
 	cfgPath := flag.String("config", defaultCfg, "Pfad zur Konfigurationsdatei")
 	noBrowser := flag.Bool("no-browser", false, "Browser nicht automatisch öffnen")
+	idle := flag.Duration("idle", 5*time.Minute, "beenden, wenn so lange kein Browser-Tab mehr offen ist (0 = nie)")
 	flag.Parse()
 
 	fmt.Printf(banner, version)
@@ -62,7 +66,7 @@ func main() {
 		log.Fatal(err)
 	}
 	url := srv.LoginURL("http://" + ln.Addr().String())
-	fmt.Printf("   Konfiguration: %s\n   Webinterface:  %s\n   Beenden mit Strg+C\n\n", *cfgPath, url)
+	fmt.Printf("   Konfiguration: %s\n   Webinterface:  %s\n   Beenden über den Knopf im Webinterface oder mit Strg+C\n\n", *cfgPath, url)
 	if !*noBrowser {
 		openBrowser(url)
 	}
@@ -71,7 +75,51 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}
-	log.Fatal(hs.Serve(ln))
+	go func() {
+		if err := hs.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
+
+	sig := make(chan os.Signal, 2)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	select {
+	case <-sig:
+	case <-srv.Done():
+	case <-idleTimeout(srv, *idle):
+		fmt.Println("   Kein Browser-Tab mehr offen.")
+	}
+	// Shutdown wartet, bis laufende Anfragen fertig sind, damit ein Einsortieren
+	// nicht mittendrin abbricht. Ein zweites Strg+C beendet sofort.
+	fmt.Println("   Der Bär räumt noch fertig auf …")
+	go func() {
+		<-sig
+		os.Exit(1)
+	}()
+	if err := hs.Shutdown(context.Background()); err != nil {
+		log.Print(err)
+	}
+	fmt.Println("   Gute Nacht! ʕ-ᴥ-ʔ")
+}
+
+// idleTimeout meldet sich, wenn der Browser länger als d nichts von sich hören
+// ließ. Das Webinterface meldet sich alle 30 Sekunden, solange ein Tab offen ist.
+func idleTimeout(srv *Server, d time.Duration) <-chan struct{} {
+	ch := make(chan struct{})
+	if d <= 0 {
+		return ch
+	}
+	go func() {
+		t := time.NewTicker(max(min(d/4, 15*time.Second), time.Millisecond))
+		defer t.Stop()
+		for now := range t.C {
+			if srv.IdleFor(now) > d {
+				close(ch)
+				return
+			}
+		}
+	}()
+	return ch
 }
 
 // requireLoopback verhindert, dass die Oberfläche im Netzwerk erreichbar wird.
