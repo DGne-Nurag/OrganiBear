@@ -32,6 +32,7 @@ func moveFile(src, dst string) error {
 	if exists(dst) {
 		return errExists
 	}
+	// #nosec G301 -- Bibliotheksordner müssen für Mediaserver lesbar sein
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
@@ -39,7 +40,7 @@ func moveFile(src, dst string) error {
 	switch {
 	case err == nil:
 		if err := os.Remove(src); err != nil {
-			os.Remove(dst)
+			_ = os.Remove(dst)
 			return err
 		}
 		return nil
@@ -57,7 +58,7 @@ func moveFile(src, dst string) error {
 		return err
 	}
 	if err := os.Remove(src); err != nil {
-		os.Remove(dst) // Original bleibt, also keine halbe Doppelung zurücklassen
+		_ = os.Remove(dst) // Original bleibt, also keine halbe Doppelung zurücklassen
 		return err
 	}
 	return nil
@@ -93,6 +94,7 @@ func requireRegular(p string) error {
 // wirklich innerhalb von root liegt. Legt fehlende Ordner vorher an.
 func insideReal(root, p string) error {
 	dir := filepath.Dir(p)
+	// #nosec G301 -- Bibliotheksordner müssen für Mediaserver lesbar sein
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -112,13 +114,14 @@ func insideReal(root, p string) error {
 
 // copyFile kopiert eine Datei samt Änderungszeit. Existiert das Ziel, schlägt sie fehl.
 func copyFile(src, dst string) (err error) {
+	// #nosec G301 -- Bibliotheksordner müssen für Mediaserver lesbar sein
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 	if err := requireRegular(src); err != nil {
 		return err
 	}
-	in, err := os.Open(src)
+	in, err := os.Open(src) // #nosec G304 -- Quelldatei aus dem vom Benutzer gewählten Ordner, vorher als normale Datei geprüft
 	if err != nil {
 		return err
 	}
@@ -127,7 +130,8 @@ func copyFile(src, dst string) (err error) {
 	if err != nil {
 		return err
 	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, st.Mode().Perm()|0o200)
+	out, err := os.OpenFile(dst, // #nosec G304 -- Ziel innerhalb des Zielordners, O_EXCL verhindert Überschreiben
+		os.O_WRONLY|os.O_CREATE|os.O_EXCL, st.Mode().Perm()|0o200)
 	if errors.Is(err, os.ErrExist) {
 		return errExists
 	}
@@ -139,7 +143,7 @@ func copyFile(src, dst string) (err error) {
 			err = cerr
 		}
 		if err != nil {
-			os.Remove(dst)
+			_ = os.Remove(dst)
 		}
 	}()
 	if _, err = io.Copy(out, in); err != nil {

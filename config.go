@@ -123,7 +123,7 @@ func (c *Config) Ignored(name string) bool {
 
 func LoadConfig(path string) (Config, error) {
 	cfg := DefaultConfig()
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- Konfigurationspfad vom Benutzer per -config gewählt
 	if errors.Is(err, os.ErrNotExist) {
 		return cfg, nil
 	}
@@ -148,11 +148,11 @@ func SaveConfig(path string, cfg Config) error {
 	}
 	defer os.Remove(f.Name())
 	if err := f.Chmod(0o600); err != nil && runtime.GOOS != "windows" {
-		f.Close()
+		_ = f.Close()
 		return err
 	}
 	if _, err := f.Write(append(data, '\n')); err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	}
 	if err := f.Close(); err != nil {

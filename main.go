@@ -114,11 +114,11 @@ func openBrowser(url string) {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url) // #nosec G204 -- url ist die eigene lokale Adresse, keine Benutzereingabe
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", url) // #nosec G204 -- url ist die eigene lokale Adresse, keine Benutzereingabe
 	default:
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", url) // #nosec G204 -- url ist die eigene lokale Adresse, keine Benutzereingabe
 	}
 	_ = cmd.Start()
 }
