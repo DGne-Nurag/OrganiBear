@@ -53,6 +53,8 @@ type Config struct {
 	// InPlace: „Nur umbenennen“. Die Bibliothek entsteht im Quellordner selbst,
 	// TargetDir bleibt für später gemerkt.
 	InPlace bool `json:"in_place,omitempty"`
+	// RemuxMP4: MP4-Videos beim Einsortieren verlustfrei in MKV umpacken.
+	RemuxMP4 bool `json:"remux_mp4,omitempty"`
 }
 
 // Target ist der Ordner, in den einsortiert wird.

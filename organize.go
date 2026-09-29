@@ -31,6 +31,13 @@ const (
 // ActionCreate steht im Verlauf für eine neu angelegte Datei (NFO, Bild).
 const ActionCreate = "create"
 
+// ActionRemux steht für ein MP4, das als MKV ins Ziel umgepackt wurde.
+const ActionRemux = "remux"
+
+// TrashDir nimmt im Zielordner die Original-MP4s nach dem Umpacken auf, damit
+// „Rückgängig“ sie zurückholen kann. Der Scan schaut dort nicht hinein.
+const TrashDir = "OrganiBear-Papierkorb"
+
 // FileOp ist eine einzelne Datei-Aktion (verschieben, kopieren oder neu angelegt).
 type FileOp struct {
 	Source string `json:"source"`
@@ -56,6 +63,12 @@ type Item struct {
 	Companions []FileOp    `json:"companions"`
 	Status     string      `json:"status"`
 	Message    string      `json:"message,omitempty"`
+	Remux      bool        `json:"remux,omitempty"`      // wird in MKV umgepackt
+	RemuxNote  string      `json:"remux_note,omitempty"` // warum ein MP4 MP4 bleibt
+
+	remuxErr     error // Ergebnis von canRemux, einmal pro Datei geprüft
+	remuxChecked bool
+	original     string // wo das Original-MP4 nach dem Umpacken liegt
 }
 
 var subDirNames = map[string]bool{"subs": true, "sub": true, "subtitles": true, "untertitel": true}
@@ -86,7 +99,7 @@ func Scan(ctx context.Context, cfg Config, db *TMDB) ([]*Item, error) {
 			return nil // unlesbare Ordner überspringen
 		}
 		if d.IsDir() {
-			if p != src && (strings.HasPrefix(d.Name(), ".") || p == dst) {
+			if p != src && (strings.HasPrefix(d.Name(), ".") || p == dst || d.Name() == TrashDir) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -389,7 +402,19 @@ func PlanTargets(cfg Config, items []*Item) {
 			tmpl = cfg.SeriesTemplate
 		}
 		rel := RenderTemplate(tmpl, it.Info)
-		it.Target = filepath.Join(dst, rel+strings.ToLower(filepath.Ext(it.Source)))
+		ext := strings.ToLower(filepath.Ext(it.Source))
+		it.Remux, it.RemuxNote = false, ""
+		if cfg.RemuxMP4 && (ext == ".mp4" || ext == ".m4v") {
+			if !it.remuxChecked {
+				it.remuxErr, it.remuxChecked = canRemux(it.Source), true
+			}
+			if it.remuxErr == nil {
+				it.Remux, ext = true, ".mkv"
+			} else {
+				it.RemuxNote = "Bleibt MP4: " + it.remuxErr.Error()
+			}
+		}
+		it.Target = filepath.Join(dst, rel+ext)
 		it.RelTarget, _ = filepath.Rel(dst, it.Target)
 		newBase := strings.TrimSuffix(it.Target, filepath.Ext(it.Target))
 		for i := range it.Companions {
@@ -505,7 +530,17 @@ func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string, extra
 			continue
 		}
 		taken[key] = true
-		ops := append([]FileOp{{Source: it.Source, Target: it.Target, Action: it.Action}}, it.Companions...)
+		ops := []FileOp{{Source: it.Source, Target: it.Target, Action: it.Action}}
+		if it.Remux {
+			// Erst umpacken; beim Verschieben wandert das Original danach in den Papierkorb.
+			ops[0].Action = ActionRemux
+			it.original = it.Source
+			if it.Action == ActionMove {
+				it.original = trashPath(dst, it.Source)
+				ops = append(ops, FileOp{Source: it.Source, Target: it.original, Action: ActionMove})
+			}
+		}
+		ops = append(ops, it.Companions...)
 		it.Status, it.Message = StatusDone, ""
 		for _, op := range ops {
 			if op.Source == op.Target {
@@ -546,6 +581,17 @@ func Apply(cfg Config, items []*Item, ids map[int]bool, journalDir string, extra
 	return j, path, writeJournal(path, j)
 }
 
+// trashPath sucht im Papierkorb einen freien Namen für ein Original.
+func trashPath(dst, src string) string {
+	base := filepath.Base(src)
+	ext := filepath.Ext(base)
+	p := filepath.Join(dst, TrashDir, base)
+	for n := 2; exists(p); n++ {
+		p = filepath.Join(dst, TrashDir, fmt.Sprintf("%s (%d)%s", strings.TrimSuffix(base, ext), n, ext))
+	}
+	return p
+}
+
 func writeJournal(path string, j *Journal) error {
 	data, err := json.MarshalIndent(j, "", "  ")
 	if err != nil {
@@ -583,7 +629,7 @@ func Undo(path string) ([]string, error) {
 		switch op.Action {
 		case ActionMove:
 			err = moveFile(op.Target, op.Source)
-		case ActionCopy, ActionCreate:
+		case ActionCopy, ActionCreate, ActionRemux:
 			if err = requireRegular(op.Target); err == nil {
 				err = os.Remove(op.Target)
 			}
@@ -613,7 +659,7 @@ func (j *Journal) validate() error {
 			return bad
 		}
 		switch op.Action {
-		case ActionMove, ActionCopy:
+		case ActionMove, ActionCopy, ActionRemux:
 			if !within(j.SourceDir, op.Source) || op.Source == j.SourceDir {
 				return bad
 			}

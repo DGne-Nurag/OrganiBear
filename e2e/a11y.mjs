@@ -7,7 +7,7 @@
 //   cd e2e && npm ci && npx playwright install chromium && npm test
 
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -304,6 +304,41 @@ async function run() {
       await page.evaluate(async () => {
         const c = (await (await fetch("/api/config")).json()).config;
         await fetch("/api/config", { method: "PUT", headers: { "X-OrganiBear": "1" }, body: JSON.stringify({ ...c, in_place: false }) });
+      });
+      await context.close();
+    }
+
+    console.log("\nMP4 in MKV umpacken");
+    {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const page = await context.newPage();
+      page.on("dialog", d => d.accept());
+      page.on("pageerror", e => fail("JavaScript-Fehler: " + e.message));
+      await page.goto(url);
+      await page.click('[data-tab="settings"]');
+      await page.check("#r-on");
+      await axe(page, "Einstellungen mit Umpacken");
+      await page.click("#save");
+      await page.click('[data-tab="sort"]');
+      const src = join(tmp, "mp4");
+      rmSync(src, { recursive: true, force: true });
+      rmSync(join(tmp, "out"), { recursive: true, force: true });
+      mkdirSync(src, { recursive: true });
+      copyFileSync(join(repo, "testdata", "remux", "h264aac.mp4"), join(src, "Inception.2010.mp4"));
+      writeFileSync(join(src, "Amelie.2001.mp4"), "");
+      await scan(page, src);
+      const tags = await page.textContent("#results");
+      /wird zu MKV umgepackt/.test(tags) ? ok("Vorschau zeigt das Umpacken") : fail("Vorschau ohne Umpack-Hinweis");
+      /Bleibt MP4/.test(tags) ? ok("Kaputte MP4 bleibt MP4, mit Grund") : fail("Kein Hinweis bei nicht umpackbarer MP4");
+      await axe(page, "Liste mit Umpacken");
+      await page.click("#selready");
+      await page.click("#apply");
+      await page.waitForFunction(() => /Papierkorb/.test(document.querySelector("#say").textContent), null, { timeout: 10000 })
+        .then(() => ok("Fertig-Meldung nennt den Papierkorb"), () => fail("Fertig-Meldung ohne Papierkorb"));
+      existsSync(join(tmp, "out", "OrganiBear-Papierkorb", "Inception.2010.mp4")) ? ok("Original im Papierkorb") : fail("Original nicht im Papierkorb");
+      await page.evaluate(async () => {
+        const c = (await (await fetch("/api/config")).json()).config;
+        await fetch("/api/config", { method: "PUT", headers: { "X-OrganiBear": "1" }, body: JSON.stringify({ ...c, remux_mp4: false }) });
       });
       await context.close();
     }

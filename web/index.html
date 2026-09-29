@@ -419,6 +419,15 @@ a.linkbtn {
       </div>
     </div>
     <div class="card">
+      <h3 class="label">MP4 in MKV umpacken</h3>
+      <label class="check"><input type="checkbox" id="r-on" aria-describedby="r-hint"> MP4-Videos beim Einsortieren in MKV umpacken</label>
+      <div class="hint" id="r-hint">
+        <p style="margin-top:0">Stell dir ein Video wie eine Kiste vor: Drin liegen Bild, Ton und Untertitel. MKV ist eine Kiste mit mehr Fächern. Plex, Jellyfin und Kodi kommen damit am besten klar.</p>
+        <p>Der Bär packt nur um, er verändert nichts: Bild und Ton bleiben genau gleich gut. Das geht schnell, braucht aber kurz so viel freien Platz, wie das Video groß ist.</p>
+        <p>Die alte MP4-Datei legt der Bär in den Ordner <code>OrganiBear-Papierkorb</code> im Zielordner. Läuft die MKV gut, darfst du den Ordner löschen. „Rückgängig“ im Verlauf holt die MP4 zurück.</p>
+      </div>
+    </div>
+    <div class="card">
       <h3 class="label">Mediaserver: Plex, Jellyfin, Kodi</h3>
       <p class="hint" style="margin-top:0" id="x-hint">Nur für Einträge mit TMDB-Treffer. Vorhandene Dateien bleiben unangetastet, „Rückgängig“ entfernt die angelegten wieder.</p>
       <label class="check"><input type="checkbox" id="x-nfo" aria-describedby="x-hint"> NFO-Dateien schreiben (Titel, Inhalt, Genres, TMDB- und IMDb-ID)</label>
@@ -693,6 +702,7 @@ async function loadConfig() {
   const x = c.extras || {};
   $("#x-nfo").checked = !!x.nfo;
   $("#x-art").checked = !!x.artwork;
+  $("#r-on").checked = !!c.remux_mp4;
   for (const k of SERVERS) {
     const srv = x[k] || {};
     for (const f of ["url", "token", "user", "password"]) if ($(`#${k}-${f}`)) $(`#${k}-${f}`).value = srv[f] || "";
@@ -835,6 +845,7 @@ $("#save").onclick = async () => {
     file_rules: readRules(),
     ignore_patterns: $("#ignore").value.split(",").map(s => s.trim()).filter(Boolean),
     extras: readExtras(),
+    remux_mp4: $("#r-on").checked,
     subtitles: readSubtitles(),
     thetvdb: { enabled: $("#t-on").checked, order: $("#t-order").value },
   };
@@ -1027,6 +1038,7 @@ function itemHTML(it) {
   const n = it.companions?.length || 0;
   const comps = n ? `<span class="tag s-neutral">+${n} Begleitdatei${n > 1 ? "en" : ""}</span>` : "";
   const action = it.action === "copy" ? `<span class="tag s-offline">wird kopiert</span>` : "";
+  const remux = it.remux ? `<span class="tag s-neutral">wird zu MKV umgepackt</span>` : it.remux_note ? `<span class="tag s-offline">${esc(it.remux_note)}</span>` : "";
   const x = state.cfg?.extras || {};
   const extraNames = [x.nfo && "NFO", x.artwork && "Bilder"].filter(Boolean).join(" & ");
   const extras = extraNames && info.tmdb_id && state.online ? `<span class="tag s-neutral">+ ${extraNames}</span>` : "";
@@ -1050,7 +1062,7 @@ function itemHTML(it) {
       <div class="meta" id="st-${it.id}">
         <span class="tag s-${it.status}">${STATUS[it.status]}</span>
         <span class="tag s-neutral">${info.series ? "Serie" : "Film"}</span>${info.part && !info.series ? `<span class="tag s-neutral">Teil ${info.part}</span>` : ""}
-        ${source}${better}${media}${comps}${extras}${subs}${action}
+        ${source}${better}${media}${comps}${extras}${subs}${action}${remux}
         ${it.message ? `<span class="msg">${esc(it.message)}</span>` : ""}
       </div>
     </div>
@@ -1155,7 +1167,9 @@ $("#apply").onclick = async () => {
   if (!chosen.length) return;
   const copies = chosen.filter(i => i.action === "copy").length;
   const how = inPlace() ? "im Quellordner umbenannt" : copies === chosen.length ? "kopiert" : copies ? "verschoben bzw. kopiert" : "verschoben";
-  const msg = `${chosen.length} Videos (plus Begleitdateien) werden ${how}.\nÜber den Verlauf lässt sich das rückgängig machen.\n\nLos geht's?`;
+  const remuxed = chosen.filter(i => i.remux), trashed = remuxed.filter(i => i.action === "move").length;
+  const rm = remuxed.length ? `\n${remuxed.length} MP4-Video${remuxed.length > 1 ? "s packt" : " packt"} der Bär dabei in MKV um. Das dauert je nach Größe ein bisschen.${trashed ? " Die alten MP4-Dateien kommen in den Ordner „OrganiBear-Papierkorb“." : ""}` : "";
+  const msg = `${chosen.length} Videos (plus Begleitdateien) werden ${how}.${rm}\nÜber den Verlauf lässt sich das rückgängig machen.\n\nLos geht's?`;
   if (!confirm(msg)) return;
   bear("sniff", "Ich trage alles an seinen Platz …");
   state.applying = true;
@@ -1167,7 +1181,7 @@ $("#apply").onclick = async () => {
     $("#results").focus();
     const errs = state.items.filter(i => i.status === "error").length;
     const warns = r.warnings?.length ? ` ${r.warnings.length} Zusatzdatei(en) fehlen: ${r.warnings.slice(0, 3).join("; ")}.` : "";
-    const servers = r.refreshed?.length ? " " + r.refreshed.join(". ") + "." : "";
+    const servers = (r.refreshed?.length ? " " + r.refreshed.join(". ") + "." : "") + (trashed ? " Die alten MP4-Dateien liegen im Ordner „OrganiBear-Papierkorb“. Läuft alles, darfst du ihn löschen." : "");
     if (errs) bear("confused", `Fertig, aber ${errs} Datei(en) hatten Probleme. Details stehen beim jeweiligen Eintrag.${warns}${servers}`, 6000);
     else if (warns) bear("confused", `Fertig! ${r.done} Videos sind ${inPlace() ? "umbenannt" : "einsortiert"}.${warns}${servers}`, 6000);
     else if (state.items.length) bear("happy", `Fertig! ${r.done} Videos sind ${inPlace() ? "umbenannt" : "einsortiert"} und aus der Liste verschwunden. Übrig ist, was noch geprüft werden will.${servers}`, 3500);

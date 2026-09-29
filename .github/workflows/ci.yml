@@ -22,6 +22,8 @@ jobs:
           check-latest: true
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
+      # ffmpeg nur für den Test: prüft, dass umgepackte MKVs Bild für Bild gleich sind
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ffmpeg
       - run: go test ./...
       - run: scripts/notices.sh > /dev/null # jede Bibliothek hat eine Lizenzdatei
 
