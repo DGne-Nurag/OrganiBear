@@ -27,6 +27,18 @@ jobs:
           cp site/* _site/
           cp docs/screenshot.png web/icon.png _site/
           cp web/tour/*.jpg _site/tour/
+      # Echte Größe des Screenshots eintragen. Ohne feste Höhe verschiebt sich
+      # die Seite, wenn das Bild nachlädt, und Sprungmarken landen zu weit oben.
+      - run: |
+          python3 - <<'PY'
+          import re, struct
+          w, h = struct.unpack(">II", open("_site/screenshot.png", "rb").read(24)[16:24])
+          p = "_site/index.html"
+          s = open(p, encoding="utf-8").read()
+          s, n = re.subn(r'(src="screenshot.png"[^>]*?) width="\d+" height="\d+"', rf'\1 width="{w}" height="{h}"', s)
+          assert n == 1, "Screenshot-Tag nicht gefunden"
+          open(p, "w", encoding="utf-8").write(s)
+          PY
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
