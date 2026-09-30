@@ -319,8 +319,12 @@ async function run() {
       await page.goto(url);
       await page.click('[data-tab="settings"]');
       await page.check("#r-on");
+      /Noch nicht gespeichert/.test(await page.textContent("#save-msg")) ? ok("Hinweis: noch nicht gespeichert") : fail("Kein Hinweis auf ungespeicherte Änderung");
       await axe(page, "Einstellungen mit Umpacken");
       await page.click("#save");
+      await page.waitForFunction(() => /✓ Gespeichert um/.test(document.querySelector("#save-msg").textContent), null, { timeout: 5000 })
+        .then(() => ok("Speichern bestätigt neben dem Knopf"), () => fail("Keine Bestätigung beim Speichern"));
+      await axe(page, "Einstellungen gespeichert");
       await page.click('[data-tab="sort"]');
       const src = join(tmp, "mp4");
       rmSync(src, { recursive: true, force: true });
