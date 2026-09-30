@@ -521,6 +521,16 @@ a.linkbtn {
       </div>
     </div>
 
+    <div class="card">
+      <h3 class="label">Einstellungen sichern und mitnehmen</h3>
+      <p class="hint" id="io-hint">„Sichern“ legt die Datei OrganiBear-Einstellungen.json in einen Ordner, den du wählst, zum Beispiel auf einen USB-Stick. Mit „Einlesen“ holst du sie wieder, auch auf einem anderen Rechner. Achtung: In der Datei stehen deine Schlüssel und Passwörter, gib sie niemandem.</p>
+      <div class="row">
+        <button type="button" class="btn small" id="cfg-export" aria-describedby="io-hint"><span aria-hidden="true">💾</span> Einstellungen sichern</button>
+        <button type="button" class="btn small" id="cfg-import" aria-describedby="io-hint"><span aria-hidden="true">📂</span> Einstellungen einlesen</button>
+      </div>
+      <p class="hint result" id="io-result" role="status"></p>
+    </div>
+
     <div class="row" style="justify-content:end">
       <span class="hint" id="cfgpath"></span>
       <span class="save-msg" id="save-msg" role="status" aria-live="polite"></span>
@@ -903,6 +913,43 @@ $("#save").onclick = async () => {
     btn.disabled = false;
     btn.textContent = "Speichern";
   }
+};
+
+// Einstellungen sichern und einlesen
+function ioResult(ok, text) {
+  $("#io-result").textContent = (ok ? "✓ " : "✗ ") + text;
+}
+$("#cfg-export").onclick = () => {
+  pickTarget = async dir => {
+    try {
+      const r = await api("POST", "/api/config/export", { dir });
+      ioResult(true, "Gesichert in " + r.path);
+      bear("happy", "Gesichert! Heb die Datei gut auf.", 2500);
+    } catch (e) {
+      ioResult(false, "Nicht gesichert: " + e.message);
+      bear("confused", "Das hat nicht geklappt: " + e.message, 4000);
+    }
+    $("#cfg-export").focus();
+  };
+  openPicker(false, "", "Wohin soll die Sicherung?", "Geh in den Ordner, in den die Datei soll, und drück dann unten auf „Diesen Ordner nehmen“. Gesichert wird, was zuletzt gespeichert wurde.");
+};
+$("#cfg-import").onclick = () => {
+  pickTarget = async dir => {
+    if (!confirm("Die Einstellungen aus diesem Ordner einlesen? Deine jetzigen werden dabei ersetzt. Eine Sicherung davon hebe ich auf.")) return $("#cfg-import").focus();
+    try {
+      const r = await api("POST", "/api/config/import", { dir });
+      await loadConfig();
+      saveMsg("", ""); // Das Formular zeigt jetzt die eingelesenen, gespeicherten Werte.
+      ioResult(true, "Eingelesen aus " + r.from + ". Die alten Einstellungen liegen in " + r.backup);
+      bear("happy", "Eingelesen! Alles wieder da.", 2500);
+      if (state.items.length) await refreshItems();
+    } catch (e) {
+      ioResult(false, "Nicht eingelesen: " + e.message);
+      bear("confused", "Das hat nicht geklappt: " + e.message, 4000);
+    }
+    $("#cfg-import").focus();
+  };
+  openPicker(false, "", "Wo liegt die Sicherung?", "Geh in den Ordner, in dem OrganiBear-Einstellungen.json liegt, und drück dann unten auf „Diesen Ordner nehmen“. Den Dateinamen musst du nicht anklicken.");
 };
 
 // Einsortieren oder nur umbenennen
@@ -1296,11 +1343,13 @@ async function openDir(path) {
     if (path) openDir("");
   }
 }
-function openPicker(files, start) {
+const PICK_FILES_HINT = "Kreuz alle Videos an, die der Bär nehmen soll. Du darfst dafür auch in andere Ordner wechseln, die Häkchen bleiben.";
+function openPicker(files, start, title, hint) {
   pickFiles = files;
   pickSel.clear();
-  $("#pk-title").textContent = files ? "Videos wählen" : "Ordner wählen";
-  $("#pk-hint").hidden = !files;
+  $("#pk-title").textContent = title || (files ? "Videos wählen" : "Ordner wählen");
+  $("#pk-hint").textContent = hint || PICK_FILES_HINT;
+  $("#pk-hint").hidden = !files && !hint;
   $("#pk-dirs").setAttribute("aria-label", files ? "Unterordner und Videos" : "Unterordner");
   $("#picker").showModal();
   openDir(start);
@@ -1320,8 +1369,10 @@ $("#pk-dirs").addEventListener("change", e => {
 $("#pk-cancel").onclick = () => $("#picker").close();
 $("#pk-ok").onclick = () => {
   if (!pickFiles) {
-    pickTarget.value = $("#pk-path").dataset.path;
+    const dir = $("#pk-path").dataset.path;
     $("#picker").close();
+    if (typeof pickTarget === "function") pickTarget(dir);
+    else pickTarget.value = dir;
     return;
   }
   if (!pickSel.size) {

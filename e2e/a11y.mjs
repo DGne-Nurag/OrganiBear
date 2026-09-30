@@ -72,6 +72,9 @@ async function scan(page, src) {
   await page.fill("#src", src);
   await page.fill("#dst", join(tmp, "out"));
   await page.click("#scan");
+  // Auf das Ende des Schnüffelns warten, nicht nur auf irgendeinen Eintrag:
+  // Einträge eines früheren Laufs können schon in der Liste stehen.
+  await page.waitForFunction(() => !document.querySelector("#scan").hasAttribute("aria-disabled"));
   await page.waitForSelector(".item");
   await page.waitForTimeout(200);
 }
@@ -211,6 +214,22 @@ async function run() {
       await axe(page, "Einstellungen");
       (await page.locator("#tvdb-card").isVisible()) ? ok("TheTVDB-Einstellungen sichtbar") : fail("TheTVDB-Einstellungen fehlen");
 
+      // Einstellungen sichern und wieder einlesen, beides über den Ordnerdialog.
+      const stick = join(tmp, "stick-" + scheme);
+      mkdirSync(stick, { recursive: true });
+      for (const [btn, want] of [["#cfg-export", "Gesichert in"], ["#cfg-import", "Eingelesen aus"]]) {
+        await page.click(btn);
+        await page.waitForTimeout(300);
+        if (btn === "#cfg-export") await axe(page, "Ordnerdialog zum Sichern");
+        await page.evaluate(d => openDir(d), stick);
+        await page.waitForTimeout(300);
+        await page.click("#pk-ok");
+        await page.waitForTimeout(500);
+        const msg = await page.textContent("#io-result");
+        msg.includes(want) ? ok(want.split(" ")[0] + ": " + msg.slice(0, 60)) : fail(btn + ": " + msg);
+      }
+      existsSync(join(stick, "OrganiBear-Einstellungen.json")) ? ok("Sicherungsdatei liegt im Ordner") : fail("Sicherungsdatei fehlt");
+
       await page.click('nav button[data-tab="sort"]');
       await page.click('[data-pick="src"]');
       await page.waitForTimeout(300);
@@ -317,6 +336,7 @@ async function run() {
       page.on("dialog", d => d.accept());
       page.on("pageerror", e => fail("JavaScript-Fehler: " + e.message));
       await page.goto(url);
+      await page.waitForFunction(() => document.querySelector("#cfgpath").textContent !== ""); // Einstellungen geladen
       await page.click('[data-tab="settings"]');
       await page.check("#r-on");
       /Noch nicht gespeichert/.test(await page.textContent("#save-msg")) ? ok("Hinweis: noch nicht gespeichert") : fail("Kein Hinweis auf ungespeicherte Änderung");
@@ -334,7 +354,7 @@ async function run() {
       writeFileSync(join(src, "Amelie.2001.mp4"), "");
       await scan(page, src);
       const tags = await page.textContent("#results");
-      /wird zu MKV umgepackt/.test(tags) ? ok("Vorschau zeigt das Umpacken") : fail("Vorschau ohne Umpack-Hinweis");
+      /wird zu MKV umgepackt/.test(tags) ? ok("Vorschau zeigt das Umpacken") : fail("Vorschau ohne Umpack-Hinweis: " + tags.replace(/\s+/g, " ").slice(0, 300));
       /Bleibt MP4/.test(tags) ? ok("Kaputte MP4 bleibt MP4, mit Grund") : fail("Kein Hinweis bei nicht umpackbarer MP4");
       await axe(page, "Liste mit Umpacken");
       await page.click("#selready");
