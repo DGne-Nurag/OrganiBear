@@ -61,7 +61,7 @@ func NewServer(cfg Config, cfgPath string, static fs.FS) *Server {
 		token:      hex.EncodeToString(tok),
 		cfg:        cfg,
 		cfgPath:    cfgPath,
-		journalDir: filepath.Join(filepath.Dir(cfgPath), "organibear-verlauf"),
+		journalDir: filepath.Join(filepath.Dir(cfgPath), journalName),
 		db:         newDB(cfg),
 		static:     static,
 		quit:       make(chan struct{}),

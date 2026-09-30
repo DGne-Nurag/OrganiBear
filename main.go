@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"syscall"
@@ -39,18 +38,22 @@ const banner = `
 `
 
 func main() {
-	defaultCfg := "organibear.json"
-	if exe, err := os.Executable(); err == nil {
-		defaultCfg = filepath.Join(filepath.Dir(exe), "organibear.json")
-	}
 	addr := flag.String("addr", "127.0.0.1:8765", "Adresse für das Webinterface")
-	cfgPath := flag.String("config", defaultCfg, "Pfad zur Konfigurationsdatei")
+	cfgPath := flag.String("config", "", "Pfad zur Konfigurationsdatei (Standard: Benutzerordner, siehe README)")
 	noBrowser := flag.Bool("no-browser", false, "Browser nicht automatisch öffnen")
 	browser := flag.Bool("browser", false, "im Browser statt im eigenen Fenster öffnen")
 	idle := flag.Duration("idle", 5*time.Minute, "beenden, wenn so lange kein Browser-Tab mehr offen ist (0 = nie)")
 	flag.Parse()
 
 	fmt.Printf(banner, version)
+
+	if *cfgPath == "" {
+		var from string
+		*cfgPath, from = defaultConfigPath()
+		if from != "" {
+			log.Printf("Einstellungen von %s nach %s übernommen.", from, *cfgPath)
+		}
+	}
 
 	cfg, err := LoadConfig(*cfgPath)
 	if err != nil {

@@ -84,8 +84,18 @@ Terminal oder einfach Tab schließen: Ist 5 Minuten lang kein Tab mehr offen, le
 (`-idle 0` schaltet das ab). In allen drei Fällen wird ein laufendes Einsortieren vorher noch fertig;
 ein zweites Strg+C bricht sofort ab.
 
-Die Konfiguration liegt standardmäßig als `organibear.json` neben dem Programm,
-der Verlauf im Ordner `organibear-verlauf` daneben.
+Die Einstellungen liegen als `organibear.json` in deinem Benutzerordner, egal wo das Programm liegt.
+So bleiben sie auch erhalten, wenn du eine neue Version an einen anderen Ort lädst:
+
+| System | Ordner |
+|---|---|
+| Windows | `%AppData%\OrganiBear` |
+| Mac | `~/Library/Application Support/OrganiBear` |
+| Linux | `~/.config/OrganiBear` |
+
+Der Verlauf liegt im Ordner `organibear-verlauf` daneben. Einstellungen aus älteren Versionen (neben dem
+Programm oder im Download-Ordner) übernimmt OrganiBear beim ersten Start automatisch. Mit `-config` geht
+auch ein eigener Ort, etwa auf einem USB-Stick.
 
 ## Mediaserver
 
