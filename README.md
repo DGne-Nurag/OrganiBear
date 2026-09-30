@@ -97,6 +97,11 @@ Der Verlauf liegt im Ordner `organibear-verlauf` daneben. Einstellungen aus ält
 Programm oder im Download-Ordner) übernimmt OrganiBear beim ersten Start automatisch. Mit `-config` geht
 auch ein eigener Ort, etwa auf einem USB-Stick.
 
+Zum Mitnehmen auf einen anderen Rechner gibt es unter **Einstellungen → Einstellungen sichern und mitnehmen**
+zwei Knöpfe. „Sichern“ legt `OrganiBear-Einstellungen.json` in einen Ordner deiner Wahl, „Einlesen“ holt sie
+von dort zurück. Die bisherigen Einstellungen hebt OrganiBear dabei als `organibear-vorher.json` auf. In der
+Datei stehen deine Schlüssel und Passwörter, also nicht weitergeben.
+
 ## Mediaserver
 
 Unter **Einstellungen › Mediaserver** lässt sich einschalten, was beim Einsortieren zusätzlich passiert

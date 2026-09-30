@@ -211,6 +211,22 @@ async function run() {
       await axe(page, "Einstellungen");
       (await page.locator("#tvdb-card").isVisible()) ? ok("TheTVDB-Einstellungen sichtbar") : fail("TheTVDB-Einstellungen fehlen");
 
+      // Einstellungen sichern und wieder einlesen, beides über den Ordnerdialog.
+      const stick = join(tmp, "stick-" + scheme);
+      mkdirSync(stick, { recursive: true });
+      for (const [btn, want] of [["#cfg-export", "Gesichert in"], ["#cfg-import", "Eingelesen aus"]]) {
+        await page.click(btn);
+        await page.waitForTimeout(300);
+        if (btn === "#cfg-export") await axe(page, "Ordnerdialog zum Sichern");
+        await page.evaluate(d => openDir(d), stick);
+        await page.waitForTimeout(300);
+        await page.click("#pk-ok");
+        await page.waitForTimeout(500);
+        const msg = await page.textContent("#io-result");
+        msg.includes(want) ? ok(want.split(" ")[0] + ": " + msg.slice(0, 60)) : fail(btn + ": " + msg);
+      }
+      existsSync(join(stick, "OrganiBear-Einstellungen.json")) ? ok("Sicherungsdatei liegt im Ordner") : fail("Sicherungsdatei fehlt");
+
       await page.click('nav button[data-tab="sort"]');
       await page.click('[data-pick="src"]');
       await page.waitForTimeout(300);

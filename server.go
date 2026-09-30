@@ -119,6 +119,8 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/config", s.getConfig)
 	mux.HandleFunc("PUT /api/config", s.putConfig)
+	mux.HandleFunc("POST /api/config/export", s.exportConfig)
+	mux.HandleFunc("POST /api/config/import", s.importConfig)
 	mux.HandleFunc("POST /api/template-preview", s.templatePreview)
 	mux.HandleFunc("POST /api/scan", s.scan)
 	mux.HandleFunc("GET /api/items", s.getItems)
@@ -254,16 +256,24 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := SaveConfig(s.cfgPath, cfg); err != nil {
+	if err := s.setConfig(cfg); err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
+	}
+	writeJSON(w, map[string]any{"config": s.cfg})
+}
+
+// setConfig speichert neue Einstellungen und übernimmt sie. Aufruf mit s.mu.
+func (s *Server) setConfig(cfg Config) error {
+	if err := SaveConfig(s.cfgPath, cfg); err != nil {
+		return err
 	}
 	if cfg.TMDBKey != s.cfg.TMDBKey || cfg.Language != s.cfg.Language || cfg.TheTVDB != s.cfg.TheTVDB {
 		s.db = newDB(cfg)
 	}
 	s.cfg = cfg
 	PlanTargets(s.run(), s.items)
-	writeJSON(w, map[string]any{"config": s.cfg})
+	return nil
 }
 
 var sampleMovie = MediaInfo{Title: "Der Herr der Ringe: Die Gefährten", OriginalTitle: "The Lord of the Rings: The Fellowship of the Ring", Year: 2001, Resolution: "2160p", VCodec: "HEVC", HDR: "HDR10", Audio: "TrueHD 7.1", Languages: "DE-EN", TMDBID: 120}
