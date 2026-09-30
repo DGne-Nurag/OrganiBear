@@ -939,6 +939,7 @@ $("#cfg-import").onclick = () => {
     try {
       const r = await api("POST", "/api/config/import", { dir });
       await loadConfig();
+      saveMsg("", ""); // Das Formular zeigt jetzt die eingelesenen, gespeicherten Werte.
       ioResult(true, "Eingelesen aus " + r.from + ". Die alten Einstellungen liegen in " + r.backup);
       bear("happy", "Eingelesen! Alles wieder da.", 2500);
       if (state.items.length) await refreshItems();
