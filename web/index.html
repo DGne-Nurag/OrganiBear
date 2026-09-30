@@ -174,6 +174,11 @@ td, th { padding: 6px 4px; text-align: left; vertical-align: middle; }
 th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
 .preview { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--bg); border-radius: 10px; padding: 8px 10px; margin-top: 6px; overflow-wrap: anywhere; }
 .preview.err { color: var(--berry); }
+.save-msg { font-weight: 700; font-size: 15px; }
+.save-msg.ok { color: var(--go); animation: savepop .35s ease; }
+.save-msg.dirty { color: var(--honey-ink); }
+.save-msg.err { color: var(--berry); }
+@keyframes savepop { from { transform: scale(.8); opacity: 0; } }
 .ph-list { display: flex; gap: 6px; flex-wrap: wrap; }
 .ph-list button { font: inherit; font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; border: 2px dashed var(--honey); color: var(--honey-ink); background: transparent; border-radius: 8px; padding: 4px 8px; cursor: pointer; }
 .hint { color: var(--muted); font-size: 13px; }
@@ -269,6 +274,7 @@ a.linkbtn {
 }
 @media (prefers-reduced-motion: reduce) {
   #bear, #bear * { animation: none !important; transition: none !important; }
+  .save-msg { animation: none !important; }
   button.btn:active { transform: none; }
 }
 </style>
@@ -527,6 +533,7 @@ a.linkbtn {
 
     <div class="row" style="justify-content:end">
       <span class="hint" id="cfgpath"></span>
+      <span class="save-msg" id="save-msg" role="status" aria-live="polite"></span>
       <button type="button" class="btn primary" id="save">Speichern</button>
     </div>
   </section>
@@ -726,7 +733,7 @@ async function loadConfig() {
   $("#tmovie").value = c.movie_template;
   $("#tseries").value = c.series_template;
   $("#ignore").value = (c.ignore_patterns || []).join(", ");
-  $("#cfgpath").textContent = "Gespeichert in " + data.path;
+  $("#cfgpath").textContent = "Einstellungsdatei: " + data.path;
   renderRules(c.file_rules || []);
   $("#placeholders").innerHTML = state.placeholders.map(p => `<button type="button" data-ph="${p}">{${p}}</button>`).join("");
   $("#offline-hint").hidden = !!c.tmdb_api_key;
@@ -864,7 +871,18 @@ function preview() {
   }, 250);
 }
 
+// Rückmeldung direkt neben dem Knopf: Der Bär oben ist beim Speichern meist
+// nicht zu sehen, weil die Einstellungen weit nach unten gehen.
+const saveMsg = (cls, text) => {
+  const m = $("#save-msg");
+  m.className = "save-msg " + cls;
+  m.textContent = text;
+};
+$("#tab-settings").addEventListener("input", () => saveMsg("dirty", "Noch nicht gespeichert"));
 $("#save").onclick = async () => {
+  const btn = $("#save");
+  btn.disabled = true;
+  btn.textContent = "Speichere …";
   const cfg = {
     ...state.cfg,
     tmdb_api_key: $("#key").value.trim(),
@@ -885,9 +903,15 @@ $("#save").onclick = async () => {
     state.cfg = r.config;
     $("#offline-hint").hidden = !!state.cfg.tmdb_api_key;
     bear("happy", "Gespeichert! Ich merk mir das.", 1800);
+    const t = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    saveMsg("ok", "✓ Gespeichert um " + t + " Uhr");
     if (state.items.length) await refreshItems();
   } catch (e) {
+    saveMsg("err", "✗ Nicht gespeichert: " + e.message);
     bear("confused", "Nicht gespeichert: " + e.message, 3000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Speichern";
   }
 };
 
